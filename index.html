@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mist Isles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#f6f8fa;font-family:'Fredoka',ui-rounded,system-ui,sans-serif}
+  canvas{display:block;cursor:grab}
+  .win{background:rgba(22,30,52,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);color:#fff}
+  #title{position:fixed;top:14px;left:14px;padding:8px 16px;font-size:16px;font-weight:600;color:#ffd77a;letter-spacing:.5px;user-select:none;pointer-events:none}
+  #help{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);padding:8px 16px;font-size:13px;color:#e6ecff;white-space:nowrap;user-select:none;pointer-events:none}
+  #help b{color:#ffd77a;font-weight:600}
+  #prompt{position:fixed;left:50%;bottom:68px;transform:translateX(-50%);padding:9px 18px;font-size:16px;font-weight:600;opacity:0;transition:opacity .15s;user-select:none;pointer-events:none;white-space:nowrap}
+  kbd{display:inline-block;font:600 13px 'Fredoka',ui-rounded,system-ui,sans-serif;color:#22283a;background:#ffd77a;border-radius:6px;padding:1px 8px;margin-right:6px}
+  #card{position:fixed;left:50%;top:13%;transform:translateX(-50%);font-size:34px;font-weight:600;color:#fff;text-shadow:0 2px 14px rgba(30,40,70,.6),0 1px 2px rgba(30,40,70,.5);opacity:0;transition:opacity .5s;pointer-events:none;letter-spacing:1px;white-space:nowrap}
+  #speed{position:fixed;top:14px;right:14px;padding:8px 14px;font-size:17px;font-weight:600;color:#ffd77a;opacity:0;transition:opacity .2s;user-select:none;pointer-events:none}
+  #stats{position:fixed;bottom:8px;right:12px;color:#fff;font:11px ui-monospace,Menlo,monospace;text-shadow:0 1px 2px #000;pointer-events:none}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#7fb6e8,#f6f8fa 70%);color:#fff;font-size:22px;font-weight:600;letter-spacing:1px;z-index:5;text-shadow:0 1px 6px rgba(30,40,70,.5);text-align:center;padding:30px}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="loading">Raising the islands…</div>
+<div id="title" class="win">Mist Isles</div>
+<div id="help" class="win"></div>
+<div id="prompt" class="win"></div>
+<div id="card"></div>
+<div id="speed" class="win"></div>
+<div id="stats"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

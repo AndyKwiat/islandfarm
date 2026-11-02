@@ -1,0 +1,15 @@
+{
+  "name": "islandfarm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/serve.ts",
+    "shot": "bun scripts/shot.ts",
+    "sim": "bun scripts/sim.ts",
+    "test": "bun test tests/",
+    "e2e": "bun scripts/e2e.ts"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  }
+}
