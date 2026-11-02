@@ -19,7 +19,8 @@ and every method below renders one frame when it finishes. Without `?paused`, th
 |---|---|
 | `view(name)`, `views()` | named camera from the level's `views` |
 | `cam(pos, target)` / `cam()` | fix the camera at `[x,y,z]` / give it back to the game |
-| `fx({ao, hud, debug, mistTop, mistBottom})` | rendering toggles. `debug` shows colliders (red), walkable edge (yellow), board range (cyan) |
+| `map(on?)` | open or close the map screen; returns whether it is open. `mapViews()` gives the projections |
+| `fx({ao, hud, debug, mistTop, mistBottom, fogNear, fogFar})` | rendering toggles. `debug` shows colliders (red), walkable edge (yellow), board range (cyan) |
 | `render()` | redraw now |
 | `screenOf(x, y, z)` | world to screen pixels, or `null` if behind the camera |
 

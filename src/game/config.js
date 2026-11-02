@@ -35,7 +35,7 @@ export const SHIP = {
   radius: 15,         // collision radius of the hull
   ceiling: 1100,      // gently pushed down above this
   floor: 110,         // gently pushed up below this (the mist is not a place to land)
-  worldRadius: 3600,  // gently turned back beyond this
+  worldRadius: 7600,  // gently turned back beyond this
   hoverClearance: 5,  // cushion above the ground unless you are descending on purpose
   landSpeed: 14,      // touching down below this horizontal speed counts as landed
   autoLandMaxHeight: 240,   // E works from up to this high above ground

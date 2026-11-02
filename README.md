@@ -19,11 +19,15 @@ bun run dev          # http://localhost:3012
 | **Shift** | sprint | descend (hold over ground to land) |
 | **E** (or Enter) | board a nearby ship | land by itself and jump out / jump out |
 | **Mouse** | click to capture, or drag: look · scroll: zoom | look around, recentres by itself |
+| **M** | map screen (Esc closes it too) | same; the world keeps running, so you can steer by it |
 
 ## The world
-Ten islands (`src/levels/main.js`): Hearth Isle (home: your hut, farm, airship *Sparrow*), Lantern Market (a second ship,
-*Red Kite*), Pagoda Spire, Lone Pine, Manor Terrace, Bamboo Shelf, Lower and Upper Station (joined by a gondola), Orchard
-Rise, Hall of Clouds. Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing),
+Twenty islands (`src/levels/main.js`), far enough apart that a hop takes several seconds at full speed. Hearth Isle (home: your
+hut, farm, airship *Sparrow*) and Lantern Market (a second ship, *Red Kite*) are joined by Pagoda Spire, Lone Pine, Manor
+Terrace, Bamboo Shelf, Orchard Rise, Hall of Clouds, Tea Terraces, Cloud Shrine, Watch Rock, Goat Crag, Wheat Steppe, Blossom
+Hollow, Scholars' Rest and Stone Sage. Two gondola lines: Lower Station ↔ Upper Station, Quarry Landing ↔ Summit Gate. The
+two islands of a gondola pair stay close together: everything else is spread out, and a test holds both of those true.
+Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing),
 `mist` (islands at every height: tuning the fade), `gallery` (every prop on one island).
 
 ## Layout
@@ -36,11 +40,12 @@ Rise, Hall of Clouds. Test levels (`?level=…`): `flat` (walking and collision)
 | `src/game/props.js` | each prop's collision shape and how far the ground is levelled around it |
 | `src/game/cameraRig.js` | both cameras, as plain math: third-person on foot, chase in the air, blended on a mode change |
 | `src/game/critters.js` | animals and villagers pottering about |
+| `src/game/mapView.js` | map projection (world to pixels, fits the whole level), used by `src/map.js` |
 | `src/game/pilot.js`, `scenarios.js` | autopilots that press real keys; scripted playthroughs |
 | `src/levels/` | level data, plain objects, plus the registry `index.js` |
 | `src/render/` | `renderer.js` (pipeline, lights) · `materials.js` (slots, walk shader, rock, **mist**) · `islandMesh.js` (top, cliff, ground paint, cover) · `worldScene.js` (props, sky, clouds, wisps, gondola, balloons) · `actors.js` (character, ships, critters, landing ring, wind) · `customModels.js` (skiff, fence, scarecrow, pad) · `debug.js` |
-| `src/engine/` | copied from the tech demo (`~/waldo/polygon`, commit `fa24512`): `geo.js` (low-poly Builder), `models.js`, `figures.js`, `people.js`, `sky.js`. Only change: `railing`, `crate`, `spindle` are exported |
-| `src/main.js`, `input.js`, `hud.js` | browser wiring; `window.game`; keyboard and mouse; on-screen text |
+| `src/engine/` | copied from the tech demo (`~/waldo/polygon`, commit `fa24512`): `geo.js` (low-poly Builder), `models.js`, `figures.js`, `people.js`, `sky.js`. Changes: `railing`, `crate`, `spindle` are exported, and `spindle` winds its faces outward (the demo's were inside out) |
+| `src/main.js`, `input.js`, `hud.js`, `map.js` | browser wiring; `window.game`; keyboard and mouse; on-screen text; minimap and map screen |
 | `tests/` | `bun test`: world, walking, ship, camera, and every scenario |
 | `scripts/` | `serve`, `shot` (screenshots), `sim` (headless), `e2e` (real input), `browser` (shared Chrome harness) |
 
@@ -62,7 +67,8 @@ and headless at thousands of times real time. And `src/render/` only reads the s
 
 ## Recipes
 - **Change how it feels:** `src/game/config.js`, then `bun test`. The tests in `tests/ship.test.js` pin "fast" and "nimble" as numbers.
-- **Add an island or props:** edit `src/levels/main.js`, with coordinates local to the island. `bun test` reports what fell off, with the rim radius there.
+- **Add an island or props:** edit `src/levels/main.js`, with coordinates local to the island. `bun test` reports what fell off, with the rim radius there. The maps pick it up by themselves.
+- **Add a gondola line:** two islands directly north and south of each other, a `gondola_station_low` on the southern one and a `gondola_station_high` on the northern one (both `rot: 1`), and an entry in `gondolas`.
 - **Add a test level:** add it to `src/levels/test.js` and `index.js`; open `?level=<id>`.
 - **Add a model:** paint it in `src/render/customModels.js`, give it an entry in `src/game/props.js`. It shows up in `?level=gallery`.
 - **Add a scripted flow:** a key in `SCENARIOS` (`src/game/scenarios.js`). It becomes a test, a `sim` run and a screenshot series.
@@ -79,5 +85,5 @@ bun run shot -- --cam 0,500,400:0,330,0 --name mine     # any camera
 bun run e2e                                    # real key and mouse events through the real-time loop
 ```
 `window.game` drives the live page (`docs/agent-api.md`): `advance(secs, "w,space")`, `tap("e")`, `walkTo`, `flyTo`,
-`teleport`, `view`, `cam`, `scenario`, `snapshot`, `stats`, `fx`, `screenOf`, `pause`. URL flags: `?level= &view= &low &noao
+`teleport`, `view`, `cam`, `scenario`, `map`, `snapshot`, `stats`, `fx`, `screenOf`, `pause`. URL flags: `?level= &view= &low &noao
 &noshadow &paused &debug`.

@@ -749,9 +749,9 @@ export function spindle(b, x0, x1, cy, rmax, n, cols) {
   const ring = (k) => { const t = k / K, x = x0 + (x1 - x0) * t, r = rmax * prof(t * 0.96 + 0.02); return [...Array(n)].map((_, i) => { const a = (i / n) * Math.PI * 2; return [x, cy + Math.cos(a) * r, Math.sin(a) * r]; }); };
   const tip0 = [x0 - 0.5, cy, 0], tip1 = [x1 + 0.5, cy, 0]; let prev = null;
   for (let k = 0; k <= K; k++) { const R = ring(k);
-    if (k === 0) for (let i = 0; i < n; i++) b.tri(tip0, R[i], R[(i + 1) % n], cols[i % cols.length]);
-    if (prev) for (let i = 0; i < n; i++) { const j = (i + 1) % n; b.quad(prev[i], R[i], R[j], prev[j], cols[(i + k) % cols.length]); }
-    if (k === K) for (let i = 0; i < n; i++) b.tri(tip1, R[(i + 1) % n], R[i], cols[i % cols.length]);
+    if (k === 0) for (let i = 0; i < n; i++) b.tri(tip0, R[(i + 1) % n], R[i], cols[i % cols.length]);
+    if (prev) for (let i = 0; i < n; i++) { const j = (i + 1) % n; b.quad(prev[j], R[j], R[i], prev[i], cols[(i + k) % cols.length]); }
+    if (k === K) for (let i = 0; i < n; i++) b.tri(tip1, R[i], R[(i + 1) % n], cols[i % cols.length]);
     prev = R; }
 }
 function airshipCargo(b) {

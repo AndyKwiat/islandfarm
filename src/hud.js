@@ -1,7 +1,7 @@
 // The on-screen bits: controls help (changes with the mode), the "E" prompt, island name cards, flight readout.
 const HELP = {
-  walk: "<b>WASD</b> run · <b>Shift</b> sprint · <b>Space</b> jump · <b>Mouse</b> look · <b>Scroll</b> zoom",
-  fly: "<b>W/S</b> throttle · <b>A/D</b> turn · <b>Space</b> climb · <b>Shift</b> descend · <b>Mouse</b> look",
+  walk: "<b>WASD</b> run · <b>Shift</b> sprint · <b>Space</b> jump · <b>Mouse</b> look · <b>Scroll</b> zoom · <b>M</b> map",
+  fly: "<b>W/S</b> throttle · <b>A/D</b> turn · <b>Space</b> climb · <b>Shift</b> descend · <b>Mouse</b> look · <b>M</b> map",
 };
 
 export function createHud(game) {

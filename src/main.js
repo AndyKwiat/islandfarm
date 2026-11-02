@@ -16,6 +16,7 @@ import { addMist, mistUniforms } from "./render/materials.js";
 import { buildDebug } from "./render/debug.js";
 import { createInput } from "./input.js";
 import { createHud } from "./hud.js";
+import { createMap } from "./map.js";
 
 const qs = new URLSearchParams(location.search);
 const api = (window.game = { ready: false, error: null });
@@ -33,8 +34,8 @@ const api = (window.game = { ready: false, error: null });
     const actors = buildActors(R.scene, game);
     addMist(R.scene);   // again, for the actors just added
     const debug = buildDebug(game.world); debug.visible = qs.has("debug"); R.scene.add(debug);
-    const input = createInput(R.renderer.domElement, rig);
-    const hud = createHud(game);
+    const hud = createHud(game), map = createMap(game);
+    const input = createInput(R.renderer.domElement, rig, { onMap: () => map.toggle(), onEscape: () => map.show(false) });
     const { camera } = R;
 
     let paused = qs.has("paused");
@@ -51,6 +52,7 @@ const api = (window.game = { ready: false, error: null });
       const focus = game.state.mode === "fly" ? game.riding() : game.state.player;
       R.aimShadows(focus.x, focus.y, focus.z, game.state.mode === "fly" ? 160 : Math.min(260, 110 + rig.distance * 1.6));
       hud.update(dt);
+      map.update();
     }
 
     // ---- real-time loop: fixed-step game, one render per frame
@@ -116,13 +118,19 @@ const api = (window.game = { ready: false, error: null });
       /** World-to-screen, in pixels; null if behind the camera. */
       screenOf(x, y, z) { const v = new THREE.Vector3(x, y, z).project(camera); return v.z > 1 ? null : [Math.round(((v.x + 1) / 2) * innerWidth), Math.round(((1 - v.y) / 2) * innerHeight)]; },
       stats() { const i = R.renderer.info.render; return { drawCalls: i.calls, triangles: i.triangles, level: levelId, islands: game.world.islands.length, props: game.world.props.length, ...api.snapshot() }; },
-      /** Rendering toggles: fx({ ao: false, hud: false, debug: true, mistTop: 200, mistBottom: 0 }). */
+      /** The map screen: map(true) opens it, map(false) closes it, map() asks. */
+      map(on) { if (on !== undefined) map.show(on); map.update(); return map.isOpen; },
+      /** Map geometry, for checks: { mini, big } projections. */
+      mapViews: () => map.views(),
+      /** Rendering toggles: fx({ ao: false, hud: false, debug: true, mistTop: 200, mistBottom: 0, fogNear: 1400, fogFar: 30000 }). */
       fx(o = {}) {
         if (o.ao !== undefined) R.ao(o.ao);
         if (o.debug !== undefined) debug.visible = !!o.debug;
-        if (o.hud !== undefined) for (const id of ["help", "prompt", "card", "speed", "stats", "title"]) { const e = document.getElementById(id); if (e) e.style.visibility = o.hud ? "" : "hidden"; }
+        if (o.hud !== undefined) for (const id of ["help", "prompt", "card", "speed", "stats", "title", "minimap"]) { const e = document.getElementById(id); if (e) e.style.visibility = o.hud ? "" : "hidden"; }
         if (o.mistTop !== undefined) mistUniforms.uMistTop.value = o.mistTop;
         if (o.mistBottom !== undefined) mistUniforms.uMistBottom.value = o.mistBottom;
+        if (o.fogNear !== undefined) R.scene.fog.near = o.fogNear;
+        if (o.fogFar !== undefined) R.scene.fog.far = o.fogFar;
         R.draw();
         return { ao: R.ao(), mistTop: mistUniforms.uMistTop.value, mistBottom: mistUniforms.uMistBottom.value };
       },

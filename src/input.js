@@ -4,11 +4,13 @@ const KEYMAP = {
   Space: "space", ShiftLeft: "shift", ShiftRight: "shift", KeyE: "e", Enter: "e",
 };
 
-export function createInput(canvas, rig) {
+export function createInput(canvas, rig, { onMap = () => {}, onEscape = () => {} } = {}) {
   const held = {};
   const blur = () => { for (const k of Object.keys(held)) held[k] = false; };
   addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code === "KeyM" && !e.repeat) onMap();
+    if (e.code === "Escape") onEscape();
     const k = KEYMAP[e.code]; if (!k) return;
     held[k] = true; e.preventDefault();
   });

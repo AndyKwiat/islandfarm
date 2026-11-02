@@ -33,7 +33,7 @@ export async function openGame({ params = "", width = 1280, height = 800, timeou
   const err = await evalJS("window.game.error || ''"); if (err) throw new Error("page error: " + err);
   console.log(`ready in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
-  const KEY: Record<string, [string, number]> = { w: ["KeyW", 87], a: ["KeyA", 65], s: ["KeyS", 83], d: ["KeyD", 68], e: ["KeyE", 69], space: ["Space", 32], shift: ["ShiftLeft", 16] };
+  const KEY: Record<string, [string, number]> = { w: ["KeyW", 87], a: ["KeyA", 65], s: ["KeyS", 83], d: ["KeyD", 68], e: ["KeyE", 69], m: ["KeyM", 77], space: ["Space", 32], shift: ["ShiftLeft", 16] };
   const key = (name: string, type: "keyDown" | "keyUp") => send("Input.dispatchKeyEvent", { type, code: KEY[name][0], windowsVirtualKeyCode: KEY[name][1], key: name === "space" ? " " : name });
   return {
     send, evalJS, logs, close,

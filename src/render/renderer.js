@@ -20,9 +20,9 @@ export function createRenderer(qs) {
   document.body.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(MIST_COLOR, 900, 5600);
+  scene.fog = new THREE.Fog(MIST_COLOR, 1400, 8500);
   scene.background = MIST_COLOR.clone();
-  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 9000);
+  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 2, 22000);
 
   const st = skyState(TIME_OF_DAY);
   scene.add(new THREE.HemisphereLight(st.hs, "#c4c8cc", st.hi * 1.15));   // the white mist below bounces plenty of light back up

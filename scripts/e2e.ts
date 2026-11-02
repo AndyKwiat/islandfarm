@@ -28,6 +28,12 @@ try {
   await page.drag(120, 0);
   check("dragging the mouse turns the camera", Math.abs((await page.evalJS("game.rig.yaw")) - yaw0) > 0.1);
 
+  check("the minimap is on screen", await page.evalJS("(() => { const r = document.getElementById('minimap').getBoundingClientRect(); return r.width > 100 && r.right <= innerWidth && r.bottom <= innerHeight && r.right > innerWidth - 30 && r.bottom > innerHeight - 30; })()"));
+  await page.tap("m");
+  check("M opens the map screen", await page.evalJS("game.map() && getComputedStyle(document.getElementById('mapscreen')).display === 'flex'"));
+  await page.tap("m");
+  check("M closes it again", await page.evalJS("!game.map() && getComputedStyle(document.getElementById('mapscreen')).display === 'none'"));
+
   await page.evalJS("(() => { const s = game.state.ships[0], p = game.state.player; p.x = s.x + 10; p.z = s.z; p.vx = p.vz = 0; })()");
   await waitFor("next to the ship, E is offered", (s) => s.prompt === "board");
   await page.tap("e");

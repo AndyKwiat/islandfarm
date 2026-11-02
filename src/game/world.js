@@ -102,9 +102,18 @@ export function compileLevel(def) {
   });
 
   return {
-    id: def.id, name: def.name ?? def.id, islands, byId, props, colliders, ships, critters, spawn, fields, gondolas,
-    balloons: def.balloons ?? [], views: def.views ?? {},
+    id: def.id, name: def.name ?? def.id, islands, byId, props, colliders, ships, critters, spawn, fields, gondolas, gondolaIslands: def.gondolas ?? [],
+    balloons: def.balloons ?? [], views: Object.fromEntries(Object.entries(def.views ?? {}).map(([name, v]) => [name, resolveView(v, byId)])),
   };
+}
+
+/** A level's camera is [position, target] in world coordinates, or [islandId | null, position, target] relative to an island's centre and top. */
+function resolveView(v, byId) {
+  if (v.length === 2) return v;
+  const isl = v[0] ? byId[v[0]] : null;
+  if (v[0] && !isl) throw new Error(`view: unknown island "${v[0]}"`);
+  const at = ([x, y, z]) => (isl ? [isl.x + x, isl.top + y, isl.z + z] : [x, y, z]);
+  return [at(v[1]), at(v[2])];
 }
 
 /** World-space collider for a prop: {kind: "circle"|"box", ...}. Quarter-turn rot only, like the tech demo. */

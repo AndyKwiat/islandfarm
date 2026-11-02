@@ -7,15 +7,15 @@ import { MODELS, C, lantern, railing } from "../engine/models.js";
 const BRASS = "#c8963e", BRASSD = "#8a6428", COPPER = "#b86a3a";
 
 /** Gas envelope along x: lengthwise stripes (the demo's spindle() paints a chequerboard), a brass cap at each end. */
-function envelope(b, x0, x1, cy, rmax, n, cols) {
+export function envelope(b, x0, x1, cy, rmax, n, cols) {
   const K = 12, prof = (t) => Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.62);
   const ring = (k) => { const t = k / K, x = x0 + (x1 - x0) * t, r = rmax * prof(t * 0.96 + 0.02); return [...Array(n)].map((_, i) => { const a = (i / n) * Math.PI * 2; return [x, cy + Math.cos(a) * r, Math.sin(a) * r]; }); };
   const tip0 = [x0 - 0.4, cy, 0], tip1 = [x1 + 0.4, cy, 0]; let prev = null;
   for (let k = 0; k <= K; k++) {
     const R = ring(k);
-    if (k === 0) for (let i = 0; i < n; i++) b.tri(tip0, R[i], R[(i + 1) % n], BRASS);
-    if (prev) for (let i = 0; i < n; i++) { const j = (i + 1) % n; b.quad(prev[i], R[i], R[j], prev[j], cols[i % cols.length]); }
-    if (k === K) for (let i = 0; i < n; i++) b.tri(tip1, R[(i + 1) % n], R[i], BRASS);
+    if (k === 0) for (let i = 0; i < n; i++) b.tri(tip0, R[(i + 1) % n], R[i], BRASS);
+    if (prev) for (let i = 0; i < n; i++) { const j = (i + 1) % n; b.quad(prev[j], R[j], R[i], prev[i], cols[i % cols.length]); }
+    if (k === K) for (let i = 0; i < n; i++) b.tri(tip1, R[i], R[(i + 1) % n], BRASS);
     prev = R;
   }
 }

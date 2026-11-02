@@ -3,7 +3,7 @@ import { describe, test, expect } from "bun:test";
 import { LEVELS } from "../src/levels/index.js";
 import { compileLevel, islandAt, groundAt, surfaceHeight, rimRadius, cliffRadius, isClear, findLandingSpot } from "../src/game/world.js";
 import { PROPS } from "../src/game/props.js";
-import { MIST } from "../src/game/config.js";
+import { MIST, SHIP } from "../src/game/config.js";
 
 describe("level data", () => {
   for (const [id, def] of Object.entries(LEVELS)) {
@@ -31,14 +31,34 @@ describe("level data", () => {
     });
     test(`${id}: every prop model is known`, () => { for (const p of def.props ?? []) expect(PROPS[p.model]).toBeDefined(); });
   }
-  test("the main level has about ten islands of varied sizes", () => {
+  test("the main level has twenty islands of varied sizes", () => {
     const r = LEVELS.main.islands.map((i) => i.radius);
-    expect(r.length).toBe(10);
+    expect(r.length).toBe(20);
     expect(Math.max(...r) / Math.min(...r)).toBeGreaterThan(3);
   });
   test("islands are far enough apart that you have to fly", () => {
     const w = compileLevel(LEVELS.main);
-    for (const a of w.islands) for (const b of w.islands) if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z) - a.outerRadius - b.outerRadius).toBeGreaterThan(100);
+    const pairs = new Set(LEVELS.main.gondolas.flatMap((g) => [`${g.low}|${g.high}`, `${g.high}|${g.low}`]));
+    for (const a of w.islands) for (const b of w.islands) {
+      if (a === b || pairs.has(`${a.id}|${b.id}`)) continue;   // gondola pairs stay close on purpose
+      const gap = Math.hypot(a.x - b.x, a.z - b.z) - a.outerRadius - b.outerRadius;
+      if (gap < 1500) throw new Error(`${a.id} and ${b.id} are only ${gap.toFixed(0)} apart`);
+    }
+  });
+  test("every island is inside the flyable world", () => {
+    const w = compileLevel(LEVELS.main);
+    for (const i of w.islands) expect(Math.hypot(i.x, i.z) + i.outerRadius).toBeLessThan(SHIP.worldRadius);
+  });
+  test("gondolas: each line joins two nearby islands, with a clear span between them", () => {
+    const w = compileLevel(LEVELS.main);
+    expect(w.gondolas.length).toBeGreaterThanOrEqual(2);
+    for (const g of w.gondolas) {
+      const span = Math.hypot(g.from[0] - g.to[0], g.from[2] - g.to[2]);
+      expect(g.from[0]).toBeCloseTo(g.to[0], 5);          // the station models only line up along z
+      expect(span).toBeGreaterThan(200); expect(span).toBeLessThan(700);
+      expect(g.to[2]).toBeLessThan(g.from[2]);            // the upper station is north (-z) of the lower one
+      expect(g.to[1]).toBeGreaterThan(g.from[1] - 40);
+    }
   });
 });
 

@@ -29,7 +29,7 @@ function buildProps(world) {
 /** Sky dome: the horizon and everything below it is exactly the mist colour, so there is no horizon line to see. */
 function buildSky(st) {
   const uni = { uZen: { value: st.zen }, uHor: { value: MIST_COLOR }, uSunDir: { value: st.dir.clone().setY(Math.max(0.03, st.dir.y * 0.55)).normalize() }, uSun: { value: st.sun } };
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(7000, 32, 16), new THREE.ShaderMaterial({
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(20000, 32, 16), new THREE.ShaderMaterial({
     uniforms: uni, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: "varying vec3 vDir; void main() { vDir = normalize( position ); gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }",
     fragmentShader: `uniform vec3 uZen, uHor, uSun, uSunDir; varying vec3 vDir;
@@ -48,11 +48,11 @@ function buildClouds() {
   const group = new THREE.Group(); group.name = "clouds";
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, fog: true, emissive: new THREE.Color("#8a93a6") });
   const R = rng(44), clouds = [];
-  for (let k = 0; k < 16; k++) {
+  for (let k = 0; k < 46; k++) {
     const b = new Builder(), n = 3 + Math.floor(R() * 4);
     for (let i = 0; i < n; i++) { const r = 22 + R() * 34; b.blob((i - n / 2) * 34 + R() * 18, R() * 10, (R() - 0.5) * 44, r * 1.35, r * 0.7, r, ["#dfe6f0", "#f4f7fb", "#ffffff"], { seed: k * 13 + i, detail: 1, jitter: 0.14, flat: -0.25 }); }
     const m = new THREE.Mesh(b.build(), mat); m.userData.noAO = true;
-    const a = R() * Math.PI * 2, d = 500 + R() * 2200;
+    const a = R() * Math.PI * 2, d = 500 + R() * 7000;
     const c = { m, x: Math.cos(a) * d, z: Math.sin(a) * d, y: 640 + R() * 420, sp: 2 + R() * 3, a };
     m.scale.setScalar(1 + R() * 1.1); m.position.set(c.x, c.y, c.z); group.add(m); clouds.push(c);
   }
