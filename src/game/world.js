@@ -104,7 +104,7 @@ export function compileLevel(def) {
   return {
     grid: buildGrid(colliders),
     id: def.id, name: def.name ?? def.id, islands, byId, props, colliders, ships, critters, spawn, fields, gondolas, gondolaIslands: def.gondolas ?? [],
-    balloons: def.balloons ?? [], views: Object.fromEntries(Object.entries(def.views ?? {}).map(([name, v]) => [name, resolveView(v, byId)])),
+    skySpec: def.sky ?? null, views: Object.fromEntries(Object.entries(def.views ?? {}).map(([name, v]) => [name, resolveView(v, byId)])),
   };
 }
 

@@ -33,7 +33,7 @@ try {
   close = page.close;
   const { send, evalJS, logs } = page;
   if (flag("--nohud")) await evalJS("game.fx({ hud: false })");
-  if (opt("--eval")) console.log("eval:", JSON.stringify(await evalJS(opt("--eval")!)));
+  if (opt("--eval") && !flag("--eval-after")) console.log("eval:", JSON.stringify(await evalJS(opt("--eval")!)));
   const files: string[] = [];
   const capture = async (name: string) => {
     await Bun.sleep(150);   // let the real-time loop draw once more
@@ -49,7 +49,7 @@ try {
     const [p, q] = opt("--cam")!.split(":"); await evalJS(`game.cam([${p}],[${q}])`); await capture(opt("--name") ?? "custom");
   } else if (views.length) {
     for (const v of views) { await evalJS(`game.view(${JSON.stringify(v)})`); await capture(v); }
-  } else { await evalJS("game.render()"); await capture("start"); }
+  } else { await evalJS("game.render()"); await capture(opt("--name") ?? "start"); }
   console.log("stats", JSON.stringify(await evalJS("game.stats()")));
   if (flag("--sheet") && files.length > 1) {
     const html = `<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(${Math.min(3, files.length)},1fr);gap:4px">${files.map((f) => `<img style="width:100%" src="data:image/png;base64,${readFileSync(f).toString("base64")}">`).join("")}</body>`;

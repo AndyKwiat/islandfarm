@@ -125,6 +125,13 @@ const api = (window.game = { ready: false, error: null });
       },
       /** World-to-screen, in pixels; null if behind the camera. */
       screenOf(x, y, z) { const v = new THREE.Vector3(x, y, z).project(camera); return v.z > 1 ? null : [Math.round(((v.x + 1) / 2) * innerWidth), Math.round(((1 - v.y) / 2) * innerHeight)]; },
+      /** How many airships and birds there are of each kind. */
+      sky() { return world.skyLife.counts(); },
+      /** Point the camera at something in the sky, wherever it is right now: lookAtSky("dragon"), lookAtSky("crane"). */
+      lookAtSky(name, angle = 0.7) {
+        const p = world.skyLife.find(name, game.state.time); if (!p) throw new Error(`nothing called "${name}" in the sky`);
+        const yaw = p.yaw + angle; api.cam([p.x + Math.sin(yaw) * p.size, p.y + p.size * 0.35, p.z + Math.cos(yaw) * p.size], [p.x, p.y, p.z]); return p;
+      },
       /** Island LOD levels, and the quality step in use. */
       lod() { return { quality: R.qualityStep, islands: Object.fromEntries(world.islands.map((it) => [it.island.id, it.level])) }; },
       stats() { const i = R.renderer.info.render; return { drawCalls: i.calls, triangles: i.triangles, quality: R.qualityStep, level: levelId, islands: game.world.islands.length, props: game.world.props.length, ...api.snapshot() }; },

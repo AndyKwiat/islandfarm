@@ -19,6 +19,7 @@ and every method below renders one frame when it finishes. Without `?paused`, th
 |---|---|
 | `view(name)`, `views()` | named camera from the level's `views` |
 | `cam(pos, target)` / `cam()` | fix the camera at `[x,y,z]` / give it back to the game |
+| `lookAtSky(name, angle?)` | aim the camera at the first ship or flock of a kind, where it is right now: `"dragon"`, `"crane"`, `"roc"` |
 | `map(on?)` | open or close the map screen; returns whether it is open. `mapViews()` gives the projections |
 | `fx({ao, hud, debug, mistTop, mistBottom, fogNear, fogFar})` | rendering toggles. `debug` shows colliders (red), walkable edge (yellow), board range (cyan) |
 | `render()` | redraw now |
@@ -29,6 +30,7 @@ and every method below renders one frame when it finishes. Without `?paused`, th
 |---|---|
 | `snapshot()` | `{t, mode, island, player, ship: {id, pos, speed, landed}, prompt, cam}`: small, for assertions |
 | `stats()` | snapshot + `drawCalls`, `triangles`, `quality`, `level`, counts |
+| `sky()` | how many airships and birds there are of each kind |
 | `lod()` | `{quality, islands: {id: 0 / 1 / 2}}`: the detail level of every island right now |
 | `loadTimes` | cumulative ms for each stage of page load |
 | `state` | the whole game state (live object) |

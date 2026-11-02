@@ -1,5 +1,5 @@
 // Everything in the world that does not belong to the game state: islands, props, sky, clouds, mist, the gondola, and
-// the balloons drifting about. buildWorldScene(scene, world) builds it all; update(time, cameraPos) animates it.
+// the airships and birds (skyLife.js). buildWorldScene(scene, world) builds it all; update(time, cameraPos) animates it.
 import * as THREE from "three";
 import { Builder } from "../engine/geo.js";
 import { modelGeometry } from "../engine/models.js";
@@ -8,6 +8,7 @@ import { rng } from "../game/rng.js";
 import { MIST } from "../game/config.js";
 import { inst, addMist, MIST_COLOR } from "./materials.js";
 import { buildIsland } from "./islandMesh.js";
+import { buildSkyLife } from "./skyLife.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
@@ -79,41 +80,19 @@ function buildGondola(g) {
   } };
 }
 
-/** Balloons and cargo ships in the distance, circling. One instanced draw per model. */
-function buildBalloons(world) {
-  const group = new THREE.Group(); group.name = "balloons";
-  const byModel = new Map(); for (const d of world.balloons) (byModel.get(d.model) ?? byModel.set(d.model, []).get(d.model)).push(d);
-  const sets = [...byModel].map(([model, list]) => {
-    const m = inst(modelGeometry(model), list.length, list.map((d) => d.colors ?? null)); m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.userData.noAO = true; group.add(m);
-    return { m, list };
-  });
-  return { group, update(time) {
-    for (const { m, list } of sets) {
-      list.forEach((d, i) => {
-        const a = d.phase + time * d.speed, x = d.x + Math.cos(a) * d.radius, z = d.z + Math.sin(a) * d.radius;
-        // the models face +x; fly along the tangent of the circle
-        const dirX = -Math.sin(a) * Math.sign(d.speed), dirZ = Math.cos(a) * Math.sign(d.speed);
-        Q.setFromAxisAngle(UP, Math.atan2(-dirZ, dirX));
-        m.setMatrixAt(i, M4.compose(V.set(x, d.y + Math.sin(time * 0.3 + d.phase) * 6, z), Q, SC.setScalar(1)));
-      });
-      m.instanceMatrix.needsUpdate = true;
-    }
-  } };
-}
-
 /** Build the world into a scene. Call addMist(scene) afterwards (actors are added later; see main.js). */
 export function buildWorldScene(scene, world, st, { groundRes = 800 } = {}) {
   const sky = buildSky(st); scene.add(sky);
   const islands = world.islands.map((isl) => { const it = buildIsland(isl, world, groundRes); scene.add(it.group); return it; });
-  const clouds = buildClouds(), wisps = buildWisps(), balloons = buildBalloons(world), gondolas = world.gondolas.map(buildGondola);
-  scene.add(clouds.group, wisps.mesh, balloons.group, ...gondolas.map((g) => g.group));
+  const clouds = buildClouds(), wisps = buildWisps(), skyLife = buildSkyLife(scene, world), gondolas = world.gondolas.map(buildGondola);
+  scene.add(clouds.group, wisps.mesh, ...gondolas.map((g) => g.group));
   addMist(scene);
   return {
-    islands,
+    islands, skyLife,
     update(time, cam) {
       sky.position.copy(cam);
       for (const it of islands) it.update(cam);
-      clouds.update(time); wisps.update(time, cam.x, cam.z); balloons.update(time);
+      clouds.update(time); wisps.update(time, cam.x, cam.z); skyLife.update(time, cam);
       for (const g of gondolas) g.update(time);
     },
   };

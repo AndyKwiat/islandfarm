@@ -44,6 +44,8 @@ export const SCENARIOS = {
       { expect: (s, g) => !g.riding().landed, note: "took off" },
       { hold: "w,space", for: 0.8 },
       { shot: "cruise" },
+      { hold: "w", for: 1.2, camYaw: 0 },
+      { shot: "cruise2" },
       { flyTo: "island:market", alt: 480 },
       { shot: "arriving" },
       { expect: (s) => s.island === "market", note: "over the market" },

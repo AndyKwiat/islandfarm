@@ -26,7 +26,12 @@ Thirty islands (`src/levels/main.js`), close enough that the next one is always 
 districts each (`BIG TOWNS` at the bottom of that file): Lantern Market, Manor Terrace, Orchard Rise, Hall of Clouds, Tea
 Terraces, Wheat Steppe, Scholars' Rest, Silk Quarter, Temple Hill and Kite Harbor. The rest run from your home, Hearth Isle
 (hut, farm, airship *Sparrow*), down to rocks with one tree on. Parked ships wait at Lantern Market (*Red Kite*) and Kite Harbor
-(*Swift*). Two gondola lines: Lower Station ↔ Upper Station, Quarry Landing ↔ Summit Gate. Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing),
+(*Swift*). Two gondola lines: Lower Station ↔ Upper Station, Quarry Landing ↔ Summit Gate. 
+The sky is busy (`sky` in `main.js`): skiffs, balloons, cargo ships, flying junks, festival dragons, paddle steamers, twin-envelope
+liners, ornithopters and crate barges on their rounds; swallows, finches and pigeons round the islands; geese and cranes in Vs;
+eagles soaring over the rocks; three giant rocs high up; drifting sky lanterns. Scenery only: it never touches you.
+
+Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing),
 `mist` (islands at every height: tuning the fade), `gallery` (every prop on one island).
 
 ## Layout
@@ -39,12 +44,13 @@ Terraces, Wheat Steppe, Scholars' Rest, Silk Quarter, Temple Hill and Kite Harbo
 | `src/game/props.js` | each prop's collision shape and how far the ground is levelled around it |
 | `src/game/cameraRig.js` | both cameras, as plain math: third-person on foot, chase in the air, blended on a mode change |
 | `src/game/lod.js` | detail level by distance, adaptive quality: decisions only, numbers in `LOD` and `QUALITY` in config.js |
+| `src/game/skyTraffic.js` | airships and birds: types, generated routes, positions as a pure function of time |
 | `src/game/critters.js` | animals and villagers pottering about |
 | `src/game/mapView.js` | map projection (world to pixels, fits the whole level), used by `src/map.js` |
 | `src/game/pilot.js`, `scenarios.js` | autopilots that press real keys; scripted playthroughs |
 | `src/levels/` | level data, plain objects: `main.js`, test levels, the registry `index.js`, and `districts.js`: town pieces (street, hamlet, temple, farm, garden, estate, fort, dock, monument, grove) |
-| `src/render/` | `renderer.js` (pipeline, lights) · `materials.js` (slots, walk shader, rock, **mist**) · `islandMesh.js` (top, cliff, ground paint, cover, crops, an island's detail levels) · `bake.js` (props merged per island, automatic far proxies) · `worldScene.js` (sky, clouds, wisps, gondola, balloons) · `actors.js` (character, ships, critters, landing ring, wind) · `customModels.js` (skiff, fence, scarecrow, pad) · `debug.js` |
-| `src/engine/` | copied from the tech demo (`~/waldo/polygon`, commit `fa24512`): `geo.js` (low-poly Builder), `models.js`, `figures.js`, `people.js`, `sky.js`. Changes: `railing`, `crate`, `spindle` are exported, and `spindle` winds its faces outward (the demo's were inside out) |
+| `src/render/` | `renderer.js` (pipeline, lights) · `materials.js` (slots, walk shader, rock, **mist**) · `islandMesh.js` (top, cliff, ground paint, cover, crops, an island's detail levels) · `bake.js` (props merged per island, automatic far proxies) · `worldScene.js` (sky, clouds, wisps, gondola) · `skyLife.js` (instanced airships and birds) · `actors.js` (character, ships, critters, landing ring, wind) · `customModels.js` (skiff, fence, scarecrow, pad) · `debug.js` |
+| `src/engine/` | copied from the tech demo (`~/waldo/polygon`, commit `fa24512`): `geo.js` (low-poly Builder), `models.js`, `figures.js`, `people.js`, `sky.js`. Changes: `railing`, `crate`, `spindle` are exported, `spindle` winds its faces outward (the demo's were inside out), and `box({ top: false })` skips the top face (it used to paint it magenta) |
 | `src/main.js`, `input.js`, `hud.js`, `map.js` | browser wiring; `window.game`; keyboard and mouse; on-screen text; minimap and map screen |
 | `tests/` | `bun test`: world, walking, ship, camera, and every scenario |
 | `scripts/` | `serve`, `shot` (screenshots), `sim` (headless), `e2e` (real input), `perf` (benchmark), `browser` (shared Chrome harness) |
@@ -66,16 +72,16 @@ and headless at thousands of times real time. And `src/render/` only reads the s
   (`colors: { roof, wall, pillar, cloth }` in level data). Yaw: heading = (sin yaw, cos yaw); people face +z, ships +x.
 
 ## Performance
-`bun run perf` prints draw calls and triangles from fixed cameras and fails above its budget. Before and after the performance
-pass, on the 30-island world:
+`bun run perf` prints draw calls and triangles from fixed cameras and fails above its budget. Before the performance pass, and
+now (the "now" includes the 64 airships and 645 birds and lanterns in the sky):
 
 | View | Draw calls | Triangles |
 |---|---|---|
-| On foot at home | 707 → 96 | 1.68M → 193K |
-| On foot in a town | 563 → 74 | 1.07M → 349K |
-| Across the isles | 713 → 99 | 1.62M → 192K |
-| High over the centre | 787 → 105 | 1.90M → 116K |
-| Whole world | 953 → 127 | 2.78M → 81K |
+| On foot at home | 707 → 111 | 1.68M → 313K |
+| On foot in a town | 563 → 88 | 1.07M → 448K |
+| Across the isles | 713 → 114 | 1.62M → 312K |
+| High over the centre | 787 → 120 | 1.90M → 235K |
+| Whole world | 953 → 134 | 2.78M → 141K |
 
 What does it, biggest first:
 - **Props are baked per island** (`bake.js`): one merged mesh, one draw, culled as a whole. Before, each model was one instanced draw spanning the world, so nothing could be culled.
@@ -92,6 +98,7 @@ The on-screen readout under the title shows fps, draw calls and triangles. Headl
 - **Add an island or props:** edit `src/levels/main.js`, with coordinates local to the island. `bun test` reports what fell off, with the rim radius there. The maps pick it up by themselves.
 - **Add a gondola line:** two islands directly north and south of each other, a `gondola_station_low` on the southern one and a `gondola_station_high` on the northern one (both `rot: 1`), and an entry in `gondolas`.
 - **Fill a big island:** add a line to `BIG TOWNS` in `src/levels/main.js`, like `street("market", -210, 170, { count: 3 })`. New kinds of district go in `src/levels/districts.js`. `bun test` catches buildings standing in each other.
+- **Change what's in the sky:** edit the counts in `sky` in `src/levels/main.js`. A new kind: paint it in `src/render/customModels.js`, add it to `SHIP_TYPES` or `BIRD_TYPES` in `src/game/skyTraffic.js`. See one with `bun run shot -- --eval "game.lookAtSky('dragon')" --name dragon`.
 - **Add a test level:** add it to `src/levels/test.js` and `index.js`; open `?level=<id>`.
 - **Add a model:** paint it in `src/render/customModels.js`, give it an entry in `src/game/props.js`. It shows up in `?level=gallery`.
 - **Add a scripted flow:** a key in `SCENARIOS` (`src/game/scenarios.js`). It becomes a test, a `sim` run and a screenshot series.
@@ -109,5 +116,5 @@ bun run e2e                                    # real key and mouse events throu
 bun run perf                                   # draw calls and triangles from fixed cameras, against a budget
 ```
 `window.game` drives the live page (`docs/agent-api.md`): `advance(secs, "w,space")`, `tap("e")`, `walkTo`, `flyTo`,
-`teleport`, `view`, `cam`, `scenario`, `map`, `lod`, `snapshot`, `stats`, `fx`, `screenOf`, `pause`. URL flags: `?level= &view= &low &hq &noao
+`teleport`, `view`, `cam`, `scenario`, `map`, `lod`, `sky`, `lookAtSky`, `snapshot`, `stats`, `fx`, `screenOf`, `pause`. URL flags: `?level= &view= &low &hq &noao
 &noshadow &paused &debug`.

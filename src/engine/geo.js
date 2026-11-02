@@ -83,7 +83,7 @@ export class Builder {
     this.quad(bC, bD, tD, tC, o.back ?? side);           // -z
     this.quad(bB, bC, tC, tB, o.right ?? side);          // +x
     this.quad(bD, bA, tA, tD, o.left ?? side);           // -x
-    this.quad(tA, tB, tC, tD, top);                      // top
+    if (top !== false) this.quad(tA, tB, tC, tD, top);   // top
     if (o.bottom !== false) this.quad(bD, bC, bB, bA, o.bottom ?? side);
     return this;
   }

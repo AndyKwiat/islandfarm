@@ -74,6 +74,8 @@ export const LOD = {
   hysteresis: 50,     // how far past a boundary you go before switching back
   crops: 620,         // crops turn into a coloured slab beyond this
   critters: 700,      // people and animals stop being drawn beyond this
+  flocks: 1300,       // small birds stop being drawn beyond this (V formations at twice it)
+  bigBirds: 5000,     // eagles and rocs
   propellers: 500,    // parked ships' propellers stop being drawn beyond this
   slowFrame: 1 / 38,  // average frame time that makes adaptive quality step down
 };

@@ -40,6 +40,12 @@ describe("baking", () => {
       for (let i = 0; i < p.P.length; i += 3) { expect(p.P[i]).toBeGreaterThanOrEqual(box.min.x - 0.01); expect(p.P[i]).toBeLessThanOrEqual(box.max.x + 0.01); }
     }
   });
+  test("no model has a face with no colour (the Builder paints those magenta)", () => {
+    for (const name of Object.keys(MODELS)) {
+      const c = modelGeometry(name).attributes.color.array;
+      for (let i = 0; i < c.length; i += 3) if (c[i] === 1 && c[i + 1] === 0 && c[i + 2] === 1) throw new Error(`${name} has an unpainted face`);
+    }
+  });
   test("tiny props have no proxy at all", () => { expect(bakedProxy("lantern_post")).toBeNull(); });
   test("every model can be baked", () => { for (const name of Object.keys(MODELS)) expect(bakedModel(name).C.length).toBe(modelGeometry(name).attributes.color.array.length); });
   test("colour slots are resolved per prop", () => {

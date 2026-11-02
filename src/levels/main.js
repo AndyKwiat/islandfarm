@@ -293,17 +293,22 @@ const level = {
     { low: "quarry_low", high: "summit_high", period: 52 },
   ],
 
-  // Scenery traffic: circles the sky and never touches the player
-  balloons: [
-    { model: "airship_small", x: 300, z: -300, y: 660, radius: 700, speed: 0.04, phase: 0.5 },
-    { model: "airship_small", x: -900, z: 500, y: 620, radius: 620, speed: -0.04, phase: 2.2, colors: { cloth: "#e04a3a" } },
-    { model: "airship_small", x: 1000, z: 1000, y: 700, radius: 560, speed: 0.05, phase: 4.1 },
-    { model: "airship_small", x: -1400, z: -1000, y: 680, radius: 600, speed: 0.045, phase: 1.4 },
-    { model: "airship_small", x: 1300, z: -900, y: 720, radius: 620, speed: -0.04, phase: 5.2 },
-    { model: "airship_cargo", x: -200, z: 100, y: 760, radius: 1900, speed: 0.02, phase: 1.1 },
-    { model: "airship_cargo", x: 200, z: 300, y: 690, radius: 2500, speed: -0.015, phase: 3.7 },
-    { model: "airship_cargo", x: 0, z: 0, y: 730, radius: 1100, speed: 0.03, phase: 5.9 },
-  ],
+  // Life in the sky: how many of everything. Routes are generated from the seed and checked against the world, so these
+  // numbers are all there is to edit. Types and their habits: src/game/skyTraffic.js.
+  sky: {
+    seed: 8,
+    ships: { airship_small: 12, airship_cargo: 6, airship_skiff: 9, airship_junk: 7, airship_dragon: 4, airship_paddle: 6, airship_liner: 4, airship_ornithopter: 10, airship_barge: 6 },
+    flocks: [
+      { type: "swallow", flocks: 14, size: [9, 18] },
+      { type: "finch", flocks: 12, size: [8, 15] },
+      { type: "pigeon", flocks: 10, size: [7, 14] },
+      { type: "goose", flocks: 6, size: [7, 11] },
+      { type: "crane", flocks: 6, size: [5, 9] },
+      { type: "eagle", flocks: 10, size: [1, 1] },
+      { type: "roc", flocks: 3, size: [1, 1] },
+      { type: "lantern", flocks: 7, size: [10, 20] },
+    ],
+  },
 
   // Named cameras: game.view("home"), `bun run shot -- --views home`. See VIEWS at the top of this file.
   views: VIEWS,
