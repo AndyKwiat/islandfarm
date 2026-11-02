@@ -4,7 +4,7 @@ const HELP = {
   fly: "<b>W/S</b> throttle · <b>A/D</b> turn · <b>Space</b> climb · <b>Shift</b> descend · <b>Mouse</b> look · <b>M</b> map",
 };
 
-export function createHud(game) {
+export function createHud(game, statsText = () => "") {
   const el = (id) => document.getElementById(id);
   const help = el("help"), prompt = el("prompt"), card = el("card"), speed = el("speed"), statsEl = el("stats");
   let cardT = 0, nextEvent = 0, lastPrompt = "", lastHelp = "", fpsN = 0, fpsT = 0;
@@ -30,7 +30,7 @@ export function createHud(game) {
       else speed.style.opacity = 0;
 
       fpsN++; fpsT += dt;
-      if (fpsT > 1) { statsEl.textContent = `${Math.round(fpsN / fpsT)} fps`; fpsN = 0; fpsT = 0; }
+      if (fpsT > 1) { statsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${statsText()}`; fpsN = 0; fpsT = 0; }
     },
   };
 }

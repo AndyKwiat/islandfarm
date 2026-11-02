@@ -21,6 +21,7 @@ import {
 import { rng, clamp, lerp, damp, angleDiff, approach } from "./rng.js";
 import { stepCritters, createCritterState } from "./critters.js";
 
+const CRITTER_EVERY = 4;   // ambient life steps at a quarter of the game's rate: nobody can tell, and it costs a quarter
 export const heading = (yaw) => [Math.sin(yaw), Math.cos(yaw)];
 const rightOf = (yaw) => [-Math.cos(yaw), Math.sin(yaw)];
 
@@ -48,7 +49,7 @@ export function createGame(levelDef) {
   };
   const events = [];              // [{t, type, ...}]: boarded, landed, jumped_out, arrived, ...
   const R = rng(1234);
-  let prevE = false, prevSpace = false;
+  let prevE = false, prevSpace = false, critterTick = 0;
   const emit = (type, data = {}) => events.push({ t: +state.time.toFixed(3), type, ...data });
 
   const shipById = (id) => state.ships.find((s) => s.id === id) ?? null;
@@ -259,7 +260,7 @@ export function createGame(levelDef) {
     // propellers run while the ship is flying
     for (const s of state.ships) s.prop = (s.prop + (s === riding() && !s.landed ? 6 + s.throttle * 40 : 0) * dt) % (Math.PI * 2);
 
-    stepCritters(state, world, dt, R);
+    if (++critterTick >= CRITTER_EVERY) { critterTick = 0; stepCritters(state, world, dt * CRITTER_EVERY, R); }
 
     const focus = state.mode === "fly" ? riding() : state.player;
     const here = islandAt(world, focus.x, focus.z);

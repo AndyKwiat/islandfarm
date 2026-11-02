@@ -3,6 +3,7 @@ import { describe, test, expect } from "bun:test";
 import { LEVELS } from "../src/levels/index.js";
 import { compileLevel, islandAt, groundAt, surfaceHeight, rimRadius, cliffRadius, isClear, findLandingSpot } from "../src/game/world.js";
 import { PROPS } from "../src/game/props.js";
+import { SCENARIOS } from "../src/game/scenarios.js";
 import { MIST, SHIP } from "../src/game/config.js";
 
 describe("level data", () => {
@@ -31,19 +32,43 @@ describe("level data", () => {
     });
     test(`${id}: every prop model is known`, () => { for (const p of def.props ?? []) expect(PROPS[p.model]).toBeDefined(); });
   }
-  test("the main level has twenty islands of varied sizes", () => {
+  test("the main level has thirty islands of varied sizes", () => {
     const r = LEVELS.main.islands.map((i) => i.radius);
-    expect(r.length).toBe(20);
+    expect(r.length).toBe(30);
     expect(Math.max(...r) / Math.min(...r)).toBeGreaterThan(3);
   });
-  test("islands are far enough apart that you have to fly", () => {
+  test("islands are close together, with room to fly between them", () => {
     const w = compileLevel(LEVELS.main);
-    const pairs = new Set(LEVELS.main.gondolas.flatMap((g) => [`${g.low}|${g.high}`, `${g.high}|${g.low}`]));
-    for (const a of w.islands) for (const b of w.islands) {
-      if (a === b || pairs.has(`${a.id}|${b.id}`)) continue;   // gondola pairs stay close on purpose
-      const gap = Math.hypot(a.x - b.x, a.z - b.z) - a.outerRadius - b.outerRadius;
-      if (gap < 1500) throw new Error(`${a.id} and ${b.id} are only ${gap.toFixed(0)} apart`);
+    for (const a of w.islands) {
+      let nearest = Infinity;
+      for (const b of w.islands) {
+        if (a === b) continue;
+        const gap = Math.hypot(a.x - b.x, a.z - b.z) - a.outerRadius - b.outerRadius;
+        nearest = Math.min(nearest, gap);
+        if (gap < 200) throw new Error(`${a.id} and ${b.id} are only ${gap.toFixed(0)} apart: the ship needs a way between them`);
+      }
+      if (nearest > 500) throw new Error(`${a.id} is ${nearest.toFixed(0)} from its nearest neighbour: too far`);
     }
+  });
+  test("about a third of the islands are big towns, with several buildings each", () => {
+    const w = compileLevel(LEVELS.main), BUILDINGS = new Set(["home1", "home2", "shop", "inn", "manor", "hall_house", "compound", "teahouse", "pagoda", "stall", "tower", "city_gate", "palace_great_hall", "statue"]);
+    const big = w.islands.filter((i) => i.radius >= 340);
+    expect(big.length).toBe(10);
+    for (const i of big) { const n = w.props.filter((p) => p.island === i.id && BUILDINGS.has(p.model)).length; if (n < 6) throw new Error(`${i.id} only has ${n} buildings`); }
+    const old = [60, 240], smallest = Math.min(...big.map((i) => i.radius));
+    expect(smallest).toBeGreaterThan(old[1]);
+  });
+  test("no two buildings stand in each other", () => {
+    const boxes = compileLevel(LEVELS.main).colliders.filter((c) => c.kind === "box"), bad = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      if (a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1) bad.push(`${a.model} at ${a.x0.toFixed(0)},${a.z0.toFixed(0)} and ${b.model} at ${b.x0.toFixed(0)},${b.z0.toFixed(0)}`);
+    }
+    if (bad.length) throw new Error("overlapping:\n" + bad.join("\n"));
+  });
+  test("the grand tour visits every island", () => {
+    const steps = SCENARIOS.grand_tour.steps.filter((s) => s.flyTo).map((s) => s.flyTo.slice("island:".length));
+    for (const i of LEVELS.main.islands) expect(steps).toContain(i.id);
   });
   test("every island is inside the flyable world", () => {
     const w = compileLevel(LEVELS.main);
@@ -83,5 +108,17 @@ describe("world queries", () => {
     const w = compileLevel(LEVELS.main), hut = w.props.find((p) => p.model === "home1");
     const s = findLandingSpot(w, hut.x, hut.z);
     expect(s).not.toBeNull(); expect(isClear(w, s.x, s.z, 10)).toBe(true);
+  });
+});
+
+describe("collider grid", () => {
+  const world = compileLevel(LEVELS.main);
+  test("agrees with checking every collider", () => {
+    const brute = (x, z, r) => { for (const c of world.colliders) { const hit = c.kind === "circle" ? Math.hypot(x - c.x, z - c.z) < c.r + r : Math.hypot(x - Math.max(c.x0, Math.min(c.x1, x)), z - Math.max(c.z0, Math.min(c.z1, z))) < r; if (hit) return true; } return false; };
+    let s = 1; const R = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 4000; i++) {
+      const isl = world.islands[Math.floor(R() * world.islands.length)], x = isl.x + (R() - 0.5) * isl.radius * 2, z = isl.z + (R() - 0.5) * isl.radius * 2, r = R() * 12;
+      expect(isClear(world, x, z, r)).toBe(!brute(x, z, r));
+    }
   });
 });

@@ -7,7 +7,8 @@
     "shot": "bun scripts/shot.ts",
     "sim": "bun scripts/sim.ts",
     "test": "bun test tests/",
-    "e2e": "bun scripts/e2e.ts"
+    "e2e": "bun scripts/e2e.ts",
+    "perf": "bun scripts/perf.ts"
   },
   "dependencies": {
     "three": "0.170.0"

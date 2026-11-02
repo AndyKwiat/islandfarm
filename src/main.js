@@ -1,12 +1,13 @@
 // The browser wiring: level → game → scene → loop. All game rules are in src/game/, all drawing in src/render/.
 // window.game is the API agents and tests drive the running page with: see docs/agent-api.md.
 //
-// URL params: ?level=main|flat|hop|mist|gallery  &view=<name>  &low  &noao  &noshadow  &paused  &debug
+// URL params: ?level=main|flat|hop|mist|gallery  &view=<name>  &low  &hq  &noao  &noshadow  &paused  &debug
 import * as THREE from "three";
 import { createGame } from "./game/game.js";
 import { createCameraRig } from "./game/cameraRig.js";
 import { SCENARIOS, runScenario } from "./game/scenarios.js";
-import { STEP } from "./game/config.js";
+import { STEP, QUALITY } from "./game/config.js";
+import { nextQuality } from "./game/lod.js";
 import { walkTo, flyTo } from "./game/pilot.js";
 import { LEVELS } from "./levels/index.js";
 import { createRenderer } from "./render/renderer.js";
@@ -27,14 +28,15 @@ const api = (window.game = { ready: false, error: null });
     if (!LEVELS[levelId]) throw new Error(`no level "${levelId}"; have ${Object.keys(LEVELS).join(", ")}`);
     await new Promise((r) => setTimeout(r, 20));   // let the loading text paint
 
-    const game = createGame(LEVELS[levelId]);
-    const R = createRenderer(qs);
+    const T0 = performance.now(), loadTimes = {}, mark = (name) => { loadTimes[name] = Math.round(performance.now() - T0); };
+    const game = createGame(LEVELS[levelId]); mark("game");
+    const R = createRenderer(qs); mark("renderer");
     const rig = createCameraRig(game);
-    const world = buildWorldScene(R.scene, game.world, R.skyState, { groundRes: qs.has("low") ? 450 : 950 });
-    const actors = buildActors(R.scene, game);
+    const world = buildWorldScene(R.scene, game.world, R.skyState, { groundRes: qs.has("low") ? 450 : 800 }); mark("world");
+    const actors = buildActors(R.scene, game); mark("actors");
     addMist(R.scene);   // again, for the actors just added
     const debug = buildDebug(game.world); debug.visible = qs.has("debug"); R.scene.add(debug);
-    const hud = createHud(game), map = createMap(game);
+    const hud = createHud(game, () => { const i = R.renderer.info.render; return `${i.calls} draws · ${Math.round(i.triangles / 1000)}k tris`; }), map = createMap(game);
     const input = createInput(R.renderer.domElement, rig, { onMap: () => map.toggle(), onEscape: () => map.show(false) });
     const { camera } = R;
 
@@ -56,15 +58,21 @@ const api = (window.game = { ready: false, error: null });
     }
 
     // ---- real-time loop: fixed-step game, one render per frame
-    const clock = new THREE.Clock(); let acc = 0;
+    const clock = new THREE.Clock(); let acc = 0, slowT = 0, slowN = 0, lastT = 0;
+    const adaptive = !qs.has("hq") && !qs.has("low");
     function loop() {
       requestAnimationFrame(loop);
       const dt = Math.min(0.1, clock.getDelta());
       if (paused) return;   // paused: nothing moves or draws until an API call asks for it (fast, deterministic screenshots)
       acc += dt;
-      while (acc >= STEP) { game.step({ ...input.held, camYaw: rig.yaw }); acc -= STEP; }
+      while (acc >= STEP) { game.step({ ...input.take(), camYaw: rig.yaw }); acc -= STEP; }
       present(dt);
       R.draw();
+      // adaptive quality: hold steady unless frames stay slow; ?hq and ?low opt out. Hidden tabs skip this: dt is capped and meaningless there
+      if (adaptive && document.visibilityState === "visible") {
+        slowT += clock.elapsedTime - lastT; slowN++; lastT = clock.elapsedTime;
+        if (slowT > 2.5) { const avg = slowT / slowN, next = nextQuality(avg, R.qualityStep, QUALITY.length - 1); if (next !== R.qualityStep) R.setQuality(next); slowT = 0; slowN = 0; }
+      }
     }
 
     // ---- agent API (see docs/agent-api.md)
@@ -76,7 +84,7 @@ const api = (window.game = { ready: false, error: null });
     };
     let scenarioRun = null;
     Object.assign(api, {
-      LEVELS: Object.keys(LEVELS), SCENARIOS: Object.keys(SCENARIOS), raw: game, rig, scene: R.scene, camera,
+      LEVELS: Object.keys(LEVELS), SCENARIOS: Object.keys(SCENARIOS), raw: game, rig, scene: R.scene, camera, renderer: R.renderer,
       get state() { return game.state; },
       get events() { return game.events; },
       /** Stop / resume the real-time loop. While paused only advance() moves things, so screenshots are deterministic. */
@@ -117,7 +125,9 @@ const api = (window.game = { ready: false, error: null });
       },
       /** World-to-screen, in pixels; null if behind the camera. */
       screenOf(x, y, z) { const v = new THREE.Vector3(x, y, z).project(camera); return v.z > 1 ? null : [Math.round(((v.x + 1) / 2) * innerWidth), Math.round(((1 - v.y) / 2) * innerHeight)]; },
-      stats() { const i = R.renderer.info.render; return { drawCalls: i.calls, triangles: i.triangles, level: levelId, islands: game.world.islands.length, props: game.world.props.length, ...api.snapshot() }; },
+      /** Island LOD levels, and the quality step in use. */
+      lod() { return { quality: R.qualityStep, islands: Object.fromEntries(world.islands.map((it) => [it.island.id, it.level])) }; },
+      stats() { const i = R.renderer.info.render; return { drawCalls: i.calls, triangles: i.triangles, quality: R.qualityStep, level: levelId, islands: game.world.islands.length, props: game.world.props.length, ...api.snapshot() }; },
       /** The map screen: map(true) opens it, map(false) closes it, map() asks. */
       map(on) { if (on !== undefined) map.show(on); map.update(); return map.isOpen; },
       /** Map geometry, for checks: { mini, big } projections. */
@@ -137,7 +147,7 @@ const api = (window.game = { ready: false, error: null });
       render() { present(0); R.draw(); },
     });
 
-    present(0.1); R.draw();
+    present(0.1); R.draw(); mark("firstFrame"); api.loadTimes = loadTimes;
     if (qs.get("view")) api.view(qs.get("view"));
     document.getElementById("loading")?.remove();
     api.ready = true;

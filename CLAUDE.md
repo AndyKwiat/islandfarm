@@ -5,6 +5,7 @@ Working loop for any change:
 2. World → edit `src/levels/` (plain data) → `bun test` (catches props off islands, overlaps, unknown models).
 3. Anything visible → `bun run shot -- --views <names> --sheet` or `--scenario <name>` → **Read the PNGs** in `shots/` and the printed errors → iterate.
 4. Input, HUD or main loop → `bun run e2e` (real key events in headless Chrome, about a minute).
+5. Adding geometry, props or render passes → `bun run perf` (draw calls and triangles against a budget).
 
 Rules:
 - `src/game/` and `src/levels/` never import three.js or touch the DOM: that is what keeps tests and headless simulation possible.

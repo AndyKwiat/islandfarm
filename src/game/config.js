@@ -35,7 +35,7 @@ export const SHIP = {
   radius: 15,         // collision radius of the hull
   ceiling: 1100,      // gently pushed down above this
   floor: 110,         // gently pushed up below this (the mist is not a place to land)
-  worldRadius: 7600,  // gently turned back beyond this
+  worldRadius: 4600,  // gently turned back beyond this
   hoverClearance: 5,  // cushion above the ground unless you are descending on purpose
   landSpeed: 14,      // touching down below this horizontal speed counts as landed
   autoLandMaxHeight: 240,   // E works from up to this high above ground
@@ -67,3 +67,22 @@ export const CAMERA = {
   blendRate: 3.2,         // how quickly a mode change blends between cameras
   mouseYaw: 0.0032, mousePitch: 0.0026, zoomStep: 0.0012,
 };
+
+export const LOD = {
+  near: 350,          // within this of the rim: full detail, AO, shadows, grass
+  mid: 1000,          // within this: full buildings on simplified terrain. Beyond it: proxy boxes
+  hysteresis: 50,     // how far past a boundary you go before switching back
+  crops: 620,         // crops turn into a coloured slab beyond this
+  critters: 700,      // people and animals stop being drawn beyond this
+  propellers: 500,    // parked ships' propellers stop being drawn beyond this
+  slowFrame: 1 / 38,  // average frame time that makes adaptive quality step down
+};
+
+// Adaptive quality: starts at step 0, steps down while frames stay slow (src/main.js). ?hq turns this off and maxes things out.
+export const QUALITY = [
+  { pixelRatio: 1.5, ao: true },
+  { pixelRatio: 1.25, ao: true },
+  { pixelRatio: 1, ao: true },
+  { pixelRatio: 1, ao: false },
+  { pixelRatio: 0.75, ao: false },
+];

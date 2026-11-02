@@ -1,6 +1,6 @@
 // The minimap (always on, bottom right) and the map screen (M). Both show the whole world, always: no fog of war.
 // Drawn in 2D on canvases, painted like an old parchment chart. The islands are drawn once; only the markers move.
-import { mapView, mapHeading } from "./game/mapView.js";
+import { mapView, mapHeading, placeLabels } from "./game/mapView.js";
 
 const INK = "#4a3a28", PARCHMENT = "#efe3c4", LAND = "#8fb56a", LAND_DARK = "#6d8f4e", RIM = "#6a5a44", ROPE = "#7a3a24", HOME = "#d8342a", YOU = "#d8342a", SHIP = "#2a6a9a";
 const FONT = "'Fredoka', ui-rounded, system-ui, sans-serif";
@@ -33,12 +33,9 @@ function paintBase(world, view, { labels }) {
   g.setLineDash([]);
   if (labels) {
     g.font = `600 12px ${FONT}`; g.textAlign = "center"; g.textBaseline = "top";
-    const north = new Set(world.gondolaIslands.map((pair) => pair.high));   // the northern island of a gondola pair: label above, clear of the rope
-    for (const isl of world.islands) {
-      const [x, y] = view.toMap(isl.x, isl.z), reach = isl.radius * view.scale * view.growth(isl) * 1.25;
-      const half = g.measureText(isl.name).width / 2 + 4;
-      const lx = Math.max(half, Math.min(size - half, x)), ly = north.has(isl.id) ? y - reach - 17 : Math.min(y + reach + 3, size - 16);
-      g.lineWidth = 3; g.strokeStyle = PARCHMENT; g.strokeText(isl.name, lx, ly); g.fillStyle = INK; g.fillText(isl.name, lx, ly);
+    const north = world.gondolaIslands.map((pair) => pair.high);   // the northern island of a gondola pair: label above, clear of the rope
+    for (const l of placeLabels(world, view, (t) => g.measureText(t).width, { north })) {
+      g.lineWidth = 3; g.strokeStyle = PARCHMENT; g.strokeText(l.text, l.x, l.y); g.fillStyle = INK; g.fillText(l.text, l.x, l.y);
     }
   }
   return c;
@@ -60,8 +57,8 @@ export function createMap(game) {
 
   function layout() {
     const miniSize = 190, bigSize = Math.round(Math.max(280, Math.min(innerWidth - 80, innerHeight - 130, 680)));
-    const mv = mapView(world, miniSize, { pad: 12, minRadius: 3.5, exaggerate: 1.5 });
-    const bv = mapView(world, bigSize, { pad: 34, minRadius: 7, exaggerate: 1.5 });
+    const mv = mapView(world, miniSize, { pad: 12, minRadius: 3 });
+    const bv = mapView(world, bigSize, { pad: 34, minRadius: 7 });
     mini = { view: mv, g: makeCanvas(miniEl, miniSize), base: paintBase(world, mv, { labels: false }), markers: 5.5 };
     big = { view: bv, g: makeCanvas(bigEl, bigSize), base: paintBase(world, bv, { labels: true }), markers: 8 };
   }

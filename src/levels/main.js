@@ -1,15 +1,17 @@
-// The main world: twenty islands above the mist. Pure data: edit freely, `bun test` will tell you if a prop fell off.
+// The main world: thirty islands above the mist, a third of them big enough to hold a town (see BIG TOWNS at the bottom). Pure data: edit freely, `bun test` will tell you if a prop fell off.
 // Prop and ship x/z are LOCAL to their island (0, 0 = island centre). rot is in quarter turns; house fronts face +z.
 // Island: x, z world position, top = height of the ground, radius = rough size, roughness = how wobbly the outline is.
 // Gondola lines run along the z axis: keep the two station islands of a pair close, directly north and south of each other.
 // Paint: { kind: "path", points: [[x, z], ...], width } | { kind: "plaza", x, z, r } (see src/render/islandMesh.js)
+import { addDistricts, hamlet, street, temple, estate, farm, garden, fort, grove, monument, dock } from "./districts.js";
+
 const STRAW_HUT = { roof: "#c89a58", wall: "#f3e4c2", pillar: "#8a5a32" };
 const RED_ROOF = { roof: "#d8603a" }, TEAL_ROOF = { roof: "#2a9a90" }, BLUE_ROOF = { roof: "#3a6ad0" }, PURPLE_ROOF = { roof: "#7a4ab0" };
 
 // Named cameras relative to an island, so they survive moving it: [island, [x, y, z] from its centre and top, look-at likewise].
 // The level compiler resolves these into world coordinates.
 const VIEWS = {
-  overview: [null, [0, 4600, 8200], [-100, 330, 500]],     // absolute: pair with game.fx({ fogFar: 30000 })
+  overview: [null, [0, 3600, 6200], [0, 330, 300]],     // absolute: pair with game.fx({ fogFar: 30000 })
   home: ["home", [-70, 90, 230], [10, 0, -5]],
   farm: ["home", [30, 42, 90], [66, 0, -22]],
   hut: ["home", [-44, 22, 16], [-44, 10, -40]],
@@ -21,6 +23,11 @@ const VIEWS = {
   gondola: ["station_low", [290, 180, -230], [0, 60, -240]],
   gondola2: ["quarry_low", [290, 180, -230], [0, 60, -240]],
   sage: ["sage", [160, 60, 260], [0, 40, 0]],
+  silk: ["silk", [120, 210, 620], [0, 0, 40]],
+  kites: ["kites", [100, 170, 560], [0, 0, 0]],
+  temple: ["temple", [140, 180, 560], [0, 20, 0]],
+  market_town: ["market", [-210, 90, 330], [-210, 10, 170]],
+  street: ["silk", [-120, 26, 8], [60, 12, 0]],
   steppe: ["steppe", [60, 180, 340], [0, 0, 0]],
   tea: ["tea", [80, 70, 200], [0, 10, 0]],
 };
@@ -30,7 +37,7 @@ const fenceRun = (island, x0, z0, count, axis) => Array.from({ length: count }, 
   axis === "x" ? { island, model: "fence", x: x0 + i * 20, z: z0 } : { island, model: "fence", x: x0, z: z0 + i * 20, rot: 1 }
 ));
 
-export default {
+const level = {
   id: "main",
   name: "The Mist Isles",
   spawn: { island: "home", x: -24, z: 12, yaw: 2.75 },   // on the path, looking at the hut and the farm
@@ -43,38 +50,48 @@ export default {
         { kind: "path", points: [[-36, -30], [8, -22], [30, -22]], width: 6 },
       ],
       mounds: [{ x: 95, z: 80, r: 55, h: 7 }, { x: -110, z: 40, r: 40, h: 5 }] },
-    { id: "market", name: "Lantern Market", x: 2400, z: -660, top: 360, radius: 200, roughness: 0.2,
+    { id: "market", name: "Lantern Market", x: -408, z: -978, top: 360, radius: 420, roughness: 0.2,
       paint: [{ kind: "plaza", x: 0, z: 0, r: 88 }, { kind: "path", points: [[0, 70], [-14, 138]], width: 9 }] },
-    { id: "pagoda", name: "Pagoda Spire", x: 660, z: -2340, top: 540, radius: 88, roughness: 0.14, flare: 0.14,
+    { id: "pagoda", name: "Pagoda Spire", x: 340, z: -470, top: 540, radius: 88, roughness: 0.14, flare: 0.14,
       paint: [{ kind: "plaza", x: 0, z: 0, r: 40 }] },
-    { id: "pine", name: "Lone Pine", x: -1500, z: -1290, top: 280, radius: 62, roughness: 0.3, flare: 0.3 },
-    { id: "manor", name: "Manor Terrace", x: -2790, z: 510, top: 350, radius: 175, roughness: 0.26,
+    { id: "pine", name: "Lone Pine", x: 165, z: 518, top: 280, radius: 62, roughness: 0.3, flare: 0.3 },
+    { id: "manor", name: "Manor Terrace", x: -885, z: 514, top: 350, radius: 400, roughness: 0.26,
       paint: [{ kind: "path", points: [[0, 30], [0, 120]], width: 8 }] },
-    { id: "bamboo", name: "Bamboo Shelf", x: -1290, z: 1950, top: 420, radius: 115, roughness: 0.32 },
-    { id: "station_low", name: "Lower Station", x: 1290, z: 3060, top: 340, radius: 100, roughness: 0.18,
+    { id: "bamboo", name: "Bamboo Shelf", x: 875, z: -554, top: 420, radius: 115, roughness: 0.32 },
+    { id: "station_low", name: "Lower Station", x: 663, z: 465, top: 340, radius: 100, roughness: 0.18,
       paint: [{ kind: "path", points: [[0, 30], [10, 80]], width: 7 }] },
-    { id: "station_high", name: "Upper Station", x: 1290, z: 2580, top: 490, radius: 105, roughness: 0.18 },
-    { id: "orchard", name: "Orchard Rise", x: 3120, z: 1260, top: 300, radius: 140, roughness: 0.3,
+    { id: "station_high", name: "Upper Station", x: 663, z: -15, top: 490, radius: 105, roughness: 0.18 },
+    { id: "orchard", name: "Orchard Rise", x: 45, z: 1335, top: 300, radius: 340, roughness: 0.3,
       mounds: [{ x: 30, z: 30, r: 70, h: 9 }] },
-    { id: "palace", name: "Hall of Clouds", x: -3000, z: -2580, top: 400, radius: 240, roughness: 0.12, flare: 0.16,
+    { id: "palace", name: "Hall of Clouds", x: 1632, z: 112, top: 400, radius: 480, roughness: 0.12, flare: 0.16,
       paint: [{ kind: "plaza", x: 0, z: 150, r: 62 }, { kind: "path", points: [[0, 110], [0, 215]], width: 16 }] },
-    { id: "tea", name: "Tea Terraces", x: 4700, z: -1900, top: 380, radius: 150, roughness: 0.24,
+    { id: "tea", name: "Tea Terraces", x: -1617, z: -511, top: 380, radius: 350, roughness: 0.24,
       paint: [{ kind: "plaza", x: 0, z: 14, r: 44 }, { kind: "path", points: [[0, 50], [10, 118]], width: 7 }] },
-    { id: "shrine", name: "Cloud Shrine", x: 2700, z: -3300, top: 600, radius: 75, roughness: 0.16, flare: 0.13,
+    { id: "shrine", name: "Cloud Shrine", x: 507, z: -958, top: 600, radius: 75, roughness: 0.16, flare: 0.13,
       paint: [{ kind: "plaza", x: 0, z: 8, r: 30 }] },
-    { id: "watch", name: "Watch Rock", x: -600, z: -4600, top: 460, radius: 110, roughness: 0.2,
+    { id: "watch", name: "Watch Rock", x: 943, z: 980, top: 460, radius: 110, roughness: 0.2,
       paint: [{ kind: "path", points: [[0, 10], [0, 92]], width: 10 }] },
-    { id: "goat", name: "Goat Crag", x: -5000, z: -600, top: 300, radius: 72, roughness: 0.32, flare: 0.3 },
-    { id: "steppe", name: "Wheat Steppe", x: -4900, z: 2100, top: 330, radius: 215, roughness: 0.2,
+    { id: "goat", name: "Goat Crag", x: 969, z: -1054, top: 300, radius: 72, roughness: 0.32, flare: 0.3 },
+    { id: "steppe", name: "Wheat Steppe", x: -1141, z: 1853, top: 330, radius: 470, roughness: 0.2,
       paint: [{ kind: "path", points: [[-120, 94], [0, 92], [110, 88]], width: 8 }] },
-    { id: "blossom", name: "Blossom Hollow", x: -3700, z: 4100, top: 430, radius: 125, roughness: 0.28,
+    { id: "blossom", name: "Blossom Hollow", x: 1544, z: -955, top: 430, radius: 125, roughness: 0.28,
       paint: [{ kind: "path", points: [[0, 20], [-20, 92]], width: 6 }] },
-    { id: "quarry_low", name: "Quarry Landing", x: 4900, z: 3460, top: 350, radius: 100, roughness: 0.2,
+    { id: "quarry_low", name: "Quarry Landing", x: 424, z: -1476, top: 350, radius: 100, roughness: 0.2,
       paint: [{ kind: "path", points: [[0, 30], [-14, 80]], width: 7 }] },
-    { id: "summit_high", name: "Summit Gate", x: 4900, z: 2980, top: 530, radius: 100, roughness: 0.16 },
-    { id: "scholars", name: "Scholars' Rest", x: 1400, z: 5300, top: 370, radius: 165, roughness: 0.22,
+    { id: "summit_high", name: "Summit Gate", x: 424, z: -1956, top: 530, radius: 100, roughness: 0.16 },
+    { id: "scholars", name: "Scholars' Rest", x: 1125, z: 1890, top: 370, radius: 380, roughness: 0.22,
       paint: [{ kind: "path", points: [[0, -10], [0, 130]], width: 9 }] },
-    { id: "sage", name: "Stone Sage", x: -1000, z: 4800, top: 520, radius: 130, roughness: 0.14, flare: 0.15,
+    { id: "silk", name: "Silk Quarter", x: -1443, z: -1771, top: 370, radius: 430, roughness: 0.16, mounds: [{ x: -250, z: -210, r: 90, h: 10 }] },
+    { id: "temple", name: "Temple Hill", x: -2352, z: 1011, top: 450, radius: 400, roughness: 0.18, flare: 0.17, mounds: [{ x: 240, z: 170, r: 100, h: 12 }] },
+    { id: "kites", name: "Kite Harbor", x: 47, z: 2500, top: 340, radius: 360, roughness: 0.2 },
+    { id: "moon", name: "Moon Islet", x: -858, z: -285, top: 560, radius: 48, roughness: 0.18, flare: 0.12 },
+    { id: "heron", name: "Heron Rock", x: -1742, z: 303, top: 320, radius: 66, roughness: 0.3, flare: 0.26 },
+    { id: "plum", name: "Plum Step", x: 983, z: -1583, top: 390, radius: 80, roughness: 0.24 },
+    { id: "cricket", name: "Cricket Knoll", x: -57, z: -1815, top: 300, radius: 58, roughness: 0.28, mounds: [{ x: 0, z: 0, r: 34, h: 6 }] },
+    { id: "perch", name: "Kite Perch", x: 1463, z: 1097, top: 470, radius: 70, roughness: 0.2, flare: 0.15 },
+    { id: "beacon", name: "Beacon Rock", x: -501, z: -1858, top: 430, radius: 55, roughness: 0.2, flare: 0.16 },
+    { id: "moss", name: "Mossy Stair", x: 1534, z: -1593, top: 360, radius: 90, roughness: 0.3 },
+    { id: "sage", name: "Stone Sage", x: 2019, z: 1093, top: 520, radius: 130, roughness: 0.14, flare: 0.15,
       paint: [{ kind: "plaza", x: 0, z: 30, r: 56 }] },
   ],
 
@@ -223,6 +240,15 @@ export default {
     { island: "scholars", model: "lantern_post", x: -12, z: 60 }, { island: "scholars", model: "lantern_post", x: 12, z: 60 },
     tree("scholars", "tree_ginkgo", -86, -52), tree("scholars", "tree_camphor", 84, -50), tree("scholars", "bamboo", -30, 100), tree("scholars", "bamboo", 32, 104),
 
+    // ---- the small newcomers
+    { island: "moon", model: "incense_burner", x: 0, z: -6 }, tree("moon", "tree_pine", 20, 14),
+    tree("heron", "tree_pine", -20, -14), tree("heron", "tree_pine", 18, -22), { island: "heron", model: "jars", x: 12, z: 16 },
+    tree("plum", "tree_blossom", -26, -20), tree("plum", "tree_blossom", 24, -24), tree("plum", "tree_fruit", 0, 26), { island: "plum", model: "well", x: -2, z: -6 },
+    tree("cricket", "tree_round", -8, -14), { island: "cricket", model: "haystack", x: 18, z: 12 },
+    { island: "perch", model: "mooring_mast", x: 0, z: -14 }, { island: "perch", model: "crates", x: 26, z: 18 },
+    { island: "beacon", model: "lantern_post", x: 0, z: -10 }, { island: "beacon", model: "lantern_post", x: -14, z: 8 }, { island: "beacon", model: "lantern_post", x: 14, z: 8 }, tree("beacon", "tree_pine", 0, 22),
+    tree("moss", "bamboo", -34, -24), tree("moss", "bamboo", -14, -40), tree("moss", "bamboo", 22, -36), tree("moss", "tree_camphor", 8, 8), { island: "moss", model: "lion_statue", x: -36, z: 24 },
+
     // ---- Stone Sage: visible from a long way off
     { island: "sage", model: "statue", x: 0, z: -34 },
     { island: "sage", model: "incense_burner", x: -26, z: 34 }, { island: "sage", model: "incense_burner", x: 26, z: 34 },
@@ -253,6 +279,11 @@ export default {
     { island: "summit_high", x: 0, z: 40, person: "daoist", range: 22 },
     { island: "scholars", x: 0, z: 30, person: "scholar", range: 50 }, { island: "scholars", x: -20, z: 70, person: "scholar", range: 30 },
     { island: "sage", x: 12, z: 40, person: "monk", range: 30 },
+    { island: "moon", x: -12, z: 16, person: "daoist", range: 10 },
+    { island: "heron", x: -8, z: 18, animal: "cat", variant: 0, range: 12 },
+    { island: "plum", x: 10, z: 8, person: "kid", range: 22 },
+    { island: "cricket", x: -14, z: 14, animal: "sheep", variant: 0, range: 12 },
+    { island: "perch", x: -20, z: 20, person: "porter", range: 14 },
     { island: "palace", x: 16, z: 130, person: "soldier", range: 0, yaw: 0 }, { island: "palace", x: -16, z: 130, person: "soldier", range: 0, yaw: 0 }, { island: "palace", x: 24, z: 176, person: "official", range: 50 },
   ],
 
@@ -264,16 +295,45 @@ export default {
 
   // Scenery traffic: circles the sky and never touches the player
   balloons: [
-    { model: "airship_small", x: 900, z: -900, y: 620, radius: 1100, speed: 0.03, phase: 0.5 },
-    { model: "airship_small", x: -1800, z: 900, y: 560, radius: 950, speed: -0.03, phase: 2.2, colors: { cloth: "#e04a3a" } },
-    { model: "airship_small", x: 2100, z: 2100, y: 680, radius: 800, speed: 0.04, phase: 4.1 },
-    { model: "airship_small", x: -3400, z: -600, y: 640, radius: 900, speed: 0.035, phase: 1.4 },
-    { model: "airship_small", x: 3600, z: -2200, y: 700, radius: 1000, speed: -0.03, phase: 5.2 },
-    { model: "airship_cargo", x: -600, z: -600, y: 720, radius: 3150, speed: 0.012, phase: 1.1 },
-    { model: "airship_cargo", x: 600, z: 900, y: 590, radius: 4200, speed: -0.009, phase: 3.7 },
-    { model: "airship_cargo", x: 0, z: 0, y: 650, radius: 1800, speed: 0.018, phase: 5.9 },
+    { model: "airship_small", x: 300, z: -300, y: 660, radius: 700, speed: 0.04, phase: 0.5 },
+    { model: "airship_small", x: -900, z: 500, y: 620, radius: 620, speed: -0.04, phase: 2.2, colors: { cloth: "#e04a3a" } },
+    { model: "airship_small", x: 1000, z: 1000, y: 700, radius: 560, speed: 0.05, phase: 4.1 },
+    { model: "airship_small", x: -1400, z: -1000, y: 680, radius: 600, speed: 0.045, phase: 1.4 },
+    { model: "airship_small", x: 1300, z: -900, y: 720, radius: 620, speed: -0.04, phase: 5.2 },
+    { model: "airship_cargo", x: -200, z: 100, y: 760, radius: 1900, speed: 0.02, phase: 1.1 },
+    { model: "airship_cargo", x: 200, z: 300, y: 690, radius: 2500, speed: -0.015, phase: 3.7 },
+    { model: "airship_cargo", x: 0, z: 0, y: 730, radius: 1100, speed: 0.03, phase: 5.9 },
   ],
 
   // Named cameras: game.view("home"), `bun run shot -- --views home`. See VIEWS at the top of this file.
   views: VIEWS,
 };
+
+// ---- BIG TOWNS: the bigger islands hold several districts each, out beyond whatever sits at their centre.
+// Each line places one piece of src/levels/districts.js at a local position. Add, move and swap them freely.
+export default addDistricts(level, [
+  // Lantern Market grows into a real town
+  street("market", -210, 170, { count: 3 }), street("market", 210, -220, { count: 3, people: ["merchant", "porter"] }), hamlet("market", 250, 130, { colors: { roof: "#d8603a" } }),
+  temple("market", -240, -190, { colors: { roof: "#2a9a90" } }), grove("market", 40, 300, "tree_blossom"),
+  // Manor Terrace: estates and gardens
+  estate("manor", -190, -170), estate("manor", 190, 190, { colors: { roof: "#3a6ad0" } }), garden("manor", 210, -170), garden("manor", -210, 190), grove("manor", 10, -270, "tree_camphor"),
+  // Orchard Rise: more orchard, more farm
+  farm("orchard", -170, -180, { crops: ["cabbage", "wheat"] }), hamlet("orchard", 190, -170), grove("orchard", -165, 145, "tree_fruit"), grove("orchard", 170, 180, "tree_fruit"), grove("orchard", -20, 220, "tree_blossom"),
+  // Hall of Clouds: the palace city around the hall
+  fort("palace", 0, 300), estate("palace", -280, 120, { colors: { roof: "#e0a830" } }), estate("palace", 280, 120, { colors: { roof: "#e0a830" } }),
+  garden("palace", -270, -190), garden("palace", 270, -190), monument("palace", 0, -270, "dragon_statue"),
+  // Tea Terraces: gardens and small farms
+  farm("tea", -190, 90, { crops: ["cabbage", "cabbage"] }), farm("tea", 145, 105, { crops: ["cabbage", "wheat"] }), garden("tea", -150, -170), hamlet("tea", 170, -130, { colors: { roof: "#2a9a90" } }),
+  // Wheat Steppe: farms to the horizon, and a village
+  farm("steppe", -280, -110), farm("steppe", 280, -130), farm("steppe", 240, 190, { crops: ["wheat", "wheat"] }), hamlet("steppe", -240, 210), hamlet("steppe", 20, 280, { people: ["farmer", "kid"] }), grove("steppe", 10, -290, "tree_round"),
+  // Scholars' Rest: a college town
+  street("scholars", -40, 210, { count: 3, people: ["scholar", "scholar", "official"] }), estate("scholars", 190, -170, { colors: { roof: "#7a4ab0" } }), temple("scholars", -190, -180, { colors: { roof: "#3a6ad0" } }), garden("scholars", 230, 140),
+  // Silk Quarter: nothing but town
+  street("silk", 0, 0, { count: 4 }), street("silk", 0, -170, { count: 3, people: ["merchant", "lady"] }), street("silk", 0, 170, { count: 3, people: ["lady", "merchant"] }),
+  hamlet("silk", -250, 40, { colors: { roof: "#d8603a" } }), hamlet("silk", 250, 40, { colors: { roof: "#7a4ab0" } }), garden("silk", 210, -220), monument("silk", -220, 220, "dragon_statue"),
+  // Temple Hill: temples, a great statue, quiet paths
+  monument("temple", 0, 0), temple("temple", -210, -150), temple("temple", 210, -150, { colors: { roof: "#e0a830" } }), temple("temple", -180, 180, { colors: { roof: "#2a9a90" } }), hamlet("temple", 60, 230), grove("temple", 0, -240),
+  // Kite Harbor: where airships come home
+  dock("kites", -120, 150, { ship: { id: "swift", name: "Swift", yaw: 0.6, colors: { cloth: "#3aa060", roof: "#d8b040" } } }), dock("kites", 140, 170), dock("kites", 0, -220),
+  street("kites", -40, -60, { count: 3, people: ["porter", "merchant"] }), fort("kites", 220, -60), hamlet("kites", -220, -90, { colors: { roof: "#2a9a90" } }),
+]);

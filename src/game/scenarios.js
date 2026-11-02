@@ -61,7 +61,7 @@ export const SCENARIOS = {
     steps: [
       { boardNearest: true },
       { hold: "w,space", for: 1.5 },
-      ...["market", "tea", "shrine", "pagoda", "watch", "palace", "pine", "goat", "manor", "steppe", "blossom", "sage", "bamboo", "scholars", "station_low", "station_high", "quarry_low", "summit_high", "orchard", "home"].flatMap((id) => [
+      ...["pine", "orchard", "kites", "scholars", "watch", "perch", "sage", "palace", "station_low", "station_high", "bamboo", "blossom", "moss", "plum", "goat", "shrine", "quarry_low", "summit_high", "cricket", "beacon", "silk", "market", "pagoda", "moon", "tea", "heron", "temple", "manor", "steppe", "home"].flatMap((id) => [
         { flyTo: `island:${id}`, alt: 640 },
         { expect: (s) => s.island === id, note: `reached ${id}` },
       ]),

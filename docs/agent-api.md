@@ -28,11 +28,13 @@ and every method below renders one frame when it finishes. Without `?paused`, th
 | Call | Returns |
 |---|---|
 | `snapshot()` | `{t, mode, island, player, ship: {id, pos, speed, landed}, prompt, cam}`: small, for assertions |
-| `stats()` | snapshot + `drawCalls`, `triangles`, `level`, counts |
+| `stats()` | snapshot + `drawCalls`, `triangles`, `quality`, `level`, counts |
+| `lod()` | `{quality, islands: {id: 0 / 1 / 2}}`: the detail level of every island right now |
+| `loadTimes` | cumulative ms for each stage of page load |
 | `state` | the whole game state (live object) |
 | `events` | log of `{t, type, ...}`: `boarded`, `took_off`, `landed`, `jumped_out`, `arrived`, `autoland`, `autoland_cancelled`, `cant_land`, `jumped` |
 | `LEVELS`, `SCENARIOS` | names available |
-| `raw`, `rig`, `scene`, `camera` | escape hatches: the game object, camera rig, three.js scene and camera |
+| `raw`, `rig`, `scene`, `camera`, `renderer` | escape hatches: the game object, camera rig, three.js scene and camera |
 
 ## Without a browser
 Everything in `src/game/` runs in Bun directly:

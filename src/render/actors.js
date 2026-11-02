@@ -6,7 +6,7 @@ import { personGeometry, animalGeometry } from "../engine/figures.js";
 import { genPerson } from "../engine/people.js";
 import { PROP_POSITIONS } from "./customModels.js";
 import { groundAt, colliderTopAt } from "../game/world.js";
-import { SHIP } from "../game/config.js";
+import { SHIP, LOD } from "../game/config.js";
 import { rng } from "../game/rng.js";
 import { inst, walkMat, vmat } from "./materials.js";
 
@@ -48,11 +48,23 @@ export function buildActors(scene, game) {
   const player = figure(personGeometry(PLAYER_LOOK)); scene.add(player.mesh);
   const ships = state.ships.map((s, i) => { const v = buildShip(s, world.ships[i]); scene.add(v.group); return v; });
 
+  // Critters share meshes by look: two looks per kind of person, one per animal. One draw for each look, however many use it,
+  // and looks with nobody near the camera aren't drawn at all.
   const R = rng(99), lookRng = { pick: (a) => a[Math.floor(R() * a.length)], chance: (p) => R() < p };
+  const flocks = new Map(), HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
   const critters = world.critters.map((c) => {
-    const geo = c.animal ? animalGeometry(c.animal, c.variant ?? 0) : personGeometry(genPerson(c.person, lookRng));
-    const f = figure(geo); scene.add(f.mesh); return f;
+    const key = c.animal ? `a:${c.animal}:${c.variant ?? 0}` : `p:${c.person}:${c.id % 2}`;
+    let f = flocks.get(key); if (!f) flocks.set(key, (f = { key, c, members: [] }));
+    const entry = { flock: f, slot: f.members.length, amp: 0, shown: true }; f.members.push(entry); return entry;
   });
+  for (const f of flocks.values()) {
+    const geo = f.c.animal ? animalGeometry(f.c.animal, f.c.variant ?? 0) : personGeometry(genPerson(f.c.person, lookRng));
+    const n = f.members.length, walking = !!geo.attributes.aPart;
+    f.mesh = inst(geo, n, null, walking ? walkMat : vmat); f.mesh.castShadow = f.mesh.receiveShadow = true; f.mesh.frustumCulled = false; f.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    f.walk = new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2); f.walk.setUsage(THREE.DynamicDrawUsage);
+    if (walking) f.mesh.geometry.setAttribute("aWalk", f.walk);
+    scene.add(f.mesh);
+  }
 
   // a ring on the ground below the ship: where you'll come down, and whether you can
   const ring = new THREE.Mesh(new THREE.RingGeometry(10, 12.5, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.7, depthWrite: false, fog: false }));
@@ -79,7 +91,8 @@ export function buildActors(scene, game) {
         v.group.rotation.set(0, s.yaw - Math.PI / 2, 0, "YXZ");
         v.group.rotateX(s.bank);
         v.group.rotateZ(s.tilt);
-        v.props.forEach((m) => { m.rotation.x = s.prop * (m === v.props[0] ? 1 : 1.4); });
+        const propsOn = Math.hypot(s.x - cameraPos.x, s.y - cameraPos.y, s.z - cameraPos.z) < LOD.propellers;
+        v.props.forEach((m) => { m.visible = propsOn; m.rotation.x = s.prop * (m === v.props[0] ? 1 : 1.4); });
       });
       // the character
       const p = state.player, ridden = state.mode === "fly" ? game.riding() : null;
@@ -95,7 +108,17 @@ export function buildActors(scene, game) {
         player.walk.array[1] = 0; player.walk.needsUpdate = true;
       } else pose(player, p.x, p.y, p.z, p.yaw, phase, amp, dt);
       // critters
-      state.critters.forEach((c, i) => pose(critters[i], c.x, c.y, c.z, c.yaw, c.stride, c.moving ? 0.5 : 0, dt));
+      const flockList = [...flocks.values()];
+      for (const f of flockList) f.any = false;
+      state.critters.forEach((c, i) => {
+        const e = critters[i], f = e.flock, near = Math.hypot(c.x - cameraPos.x, c.y - cameraPos.y, c.z - cameraPos.z) < LOD.critters;
+        if (!near) { if (e.shown) { f.mesh.setMatrixAt(e.slot, HIDDEN); f.mesh.instanceMatrix.needsUpdate = true; e.shown = false; } return; }
+        e.shown = true; f.any = true;
+        Q.setFromAxisAngle(UP, c.yaw); f.mesh.setMatrixAt(e.slot, M4.compose(V.set(c.x, c.y, c.z), Q, S1)); f.mesh.instanceMatrix.needsUpdate = true;
+        e.amp += ((c.moving ? 0.5 : 0) - e.amp) * Math.min(1, dt * 10);
+        f.walk.array[e.slot * 2] = c.stride; f.walk.array[e.slot * 2 + 1] = e.amp; f.walk.needsUpdate = true;
+      });
+      for (const f of flockList) f.mesh.visible = f.any;
       // landing ring
       const flying = state.mode === "fly" && !ridden.landed;
       const ground = flying ? groundAt(world, ridden.x, ridden.z) : null;

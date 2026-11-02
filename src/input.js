@@ -6,13 +6,14 @@ const KEYMAP = {
 
 export function createInput(canvas, rig, { onMap = () => {}, onEscape = () => {} } = {}) {
   const held = {};
+  let tapped = {};   // keys pressed since the last game step: a tap shorter than a frame must still count
   const blur = () => { for (const k of Object.keys(held)) held[k] = false; };
   addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.code === "KeyM" && !e.repeat) onMap();
     if (e.code === "Escape") onEscape();
     const k = KEYMAP[e.code]; if (!k) return;
-    held[k] = true; e.preventDefault();
+    held[k] = true; tapped[k] = true; e.preventDefault();
   });
   addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) held[k] = false; });
   addEventListener("blur", blur);
@@ -32,5 +33,9 @@ export function createInput(canvas, rig, { onMap = () => {}, onEscape = () => {}
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); rig.zoom(e.deltaY); }, { passive: false });
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  return { held };
+  return {
+    held,
+    /** The input for the next game step: what is held, plus anything pressed since the last call. */
+    take() { const keys = { ...held, ...tapped }; tapped = {}; return keys; },
+  };
 }

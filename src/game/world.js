@@ -46,7 +46,7 @@ export function surfaceHeight(island, dx, dz) {
   const p = island.phase;
   let swell = Math.sin(dx * 0.021 + p[0]) * Math.cos(dz * 0.019 + p[1]) + 0.5 * Math.sin(dx * 0.047 + p[2]) * Math.sin(dz * 0.053 + p[3]);
   let flat = 1;
-  for (const f of island.flats) flat = Math.min(flat, smoothstep(f.r, f.r + 16, Math.hypot(dx - f.x, dz - f.z)));
+  for (const f of island.flats) { flat = Math.min(flat, smoothstep(f.r, f.r + 16, Math.hypot(dx - f.x, dz - f.z))); if (flat === 0) break; }
   let h = island.top + swell * island.swell * flat;
   for (const m of island.mounds) { const d = Math.hypot(dx - m.x, dz - m.z) / m.r; if (d < 1) h += m.h * (1 - d * d) * (1 - d * d); }
   return h;
@@ -102,9 +102,30 @@ export function compileLevel(def) {
   });
 
   return {
+    grid: buildGrid(colliders),
     id: def.id, name: def.name ?? def.id, islands, byId, props, colliders, ships, critters, spawn, fields, gondolas, gondolaIslands: def.gondolas ?? [],
     balloons: def.balloons ?? [], views: Object.fromEntries(Object.entries(def.views ?? {}).map(([name, v]) => [name, resolveView(v, byId)])),
   };
+}
+
+// Colliders are looked up through a coarse grid: the character, the ship, the critters and the camera ask very often, and
+// each only ever needs the few things around it.
+const CELL = 120, GRID_MARGIN = 40, cellKey = (ix, iz) => ix * 100003 + iz, NONE = [];
+function buildGrid(colliders) {
+  const cells = new Map();
+  for (const c of colliders) {
+    const x0 = c.kind === "circle" ? c.x - c.r : c.x0, x1 = c.kind === "circle" ? c.x + c.r : c.x1, z0 = c.kind === "circle" ? c.z - c.r : c.z0, z1 = c.kind === "circle" ? c.z + c.r : c.z1;
+    for (let ix = Math.floor((x0 - GRID_MARGIN) / CELL); ix <= Math.floor((x1 + GRID_MARGIN) / CELL); ix++)
+      for (let iz = Math.floor((z0 - GRID_MARGIN) / CELL); iz <= Math.floor((z1 + GRID_MARGIN) / CELL); iz++) {
+        const k = cellKey(ix, iz); let list = cells.get(k); if (!list) cells.set(k, (list = [])); list.push(c);
+      }
+  }
+  return cells;
+}
+/** Colliders that could touch a disc at (x, z). */
+function nearColliders(world, x, z, radius) {
+  if (radius > GRID_MARGIN) return world.colliders;
+  return world.grid.get(cellKey(Math.floor(x / CELL), Math.floor(z / CELL))) ?? NONE;
 }
 
 /** A level's camera is [position, target] in world coordinates, or [islandId | null, position, target] relative to an island's centre and top. */
@@ -153,7 +174,7 @@ export function groundAt(world, x, z) {
 
 /** Push a circle (x, z, radius) out of every collider that reaches above height y. Returns [x, z]. */
 export function pushOutOfColliders(world, x, z, radius, y = -Infinity) {
-  for (const c of world.colliders) {
+  for (const c of nearColliders(world, x, z, radius)) {
     if (y >= c.h) continue;
     if (c.kind === "circle") {
       const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz), min = c.r + radius;
@@ -180,7 +201,7 @@ export function isClear(world, x, z, radius) {
 /** Highest collider top under the disc (x, z, radius), or -Infinity. The airship rests above these. */
 export function colliderTopAt(world, x, z, radius) {
   let top = -Infinity;
-  for (const c of world.colliders) {
+  for (const c of nearColliders(world, x, z, radius)) {
     const hit = c.kind === "circle" ? Math.hypot(x - c.x, z - c.z) < c.r + radius
       : Math.hypot(x - clamp(x, c.x0, c.x1), z - clamp(z, c.z0, c.z1)) < radius;
     if (hit && c.h > top) top = c.h;
