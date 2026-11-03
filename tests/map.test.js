@@ -30,6 +30,11 @@ describe("map projection", () => {
       for (let j = i + 1; j < labels.length; j++) { const b = rect(labels[j]); if (a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1) throw new Error(`${labels[i].text} overlaps ${labels[j].text}`); }
     }
   });
+  test("every draft is on the map too", () => {
+    const v = mapView(world, 190, { pad: 12 });
+    expect(world.drafts.length).toBeGreaterThan(0);
+    for (const d of world.drafts) { const [x, y] = v.toMap(d.x, d.z); expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(190); expect(y).toBeGreaterThanOrEqual(0); expect(y).toBeLessThanOrEqual(190); }
+  });
   test("north (-z) is up and east (+x) is right, at one scale", () => {
     const v = mapView(world, 500), [ax, ay] = v.toMap(0, 0), [bx, by] = v.toMap(100, 0), [cx, cy] = v.toMap(0, -100);
     expect(bx).toBeGreaterThan(ax); expect(by).toBeCloseTo(ay, 6);

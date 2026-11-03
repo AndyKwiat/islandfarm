@@ -4,7 +4,8 @@ import * as THREE from "three";
 import { modelGeometry } from "../engine/models.js";
 import { personGeometry, animalGeometry } from "../engine/figures.js";
 import { genPerson } from "../engine/people.js";
-import { PROP_POSITIONS } from "./customModels.js";
+import { Builder } from "../engine/geo.js";
+import { PROP_POSITIONS, SKIFF_SWING_PIVOT } from "./customModels.js";
 import { groundAt, colliderTopAt } from "../game/world.js";
 import { SHIP, LOD } from "../game/config.js";
 import { rng } from "../game/rng.js";
@@ -13,7 +14,7 @@ import { inst, walkMat, vmat } from "./materials.js";
 // The player's look: a farmer in a straw hat. Change anything here, see engine/figures.js for the options.
 const PLAYER_LOOK = { arch: "farmer", skin: "#f0c498", hair: "#3a2a22", top: "#e04a3a", bottom: "#3a6ad8", sash: "#f0c040", shoe: "#3a2a22", dress: false, hat: "straw", hatColor: "#3a3440", item: null, beard: false, kid: false, bun: false };
 
-const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), UP = new THREE.Vector3(0, 1, 0);
+const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S1 = new THREE.Vector3(1, 1, 1), S2 = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 
 /** A single figure with walk animation, as an InstancedMesh of one. */
 function figure(geo) {
@@ -31,16 +32,49 @@ function pose(f, x, y, z, yaw, phase, targetAmp, dt) {
   f.walk.array[0] = phase; f.walk.array[1] = f.amp; f.walk.needsUpdate = true;
 }
 
+// A ship is two meshes: the envelope holds its course and the hull hangs below it on a pivot, free to swing. Rider and propellers go with the hull.
 function buildShip(s, def) {
   const group = new THREE.Group(); group.name = "ship:" + s.id;
-  const body = inst(modelGeometry("airship_skiff"), 1, [def.colors]); body.castShadow = body.receiveShadow = true; body.frustumCulled = false;
-  group.add(body);
+  const envelope = inst(modelGeometry("airship_skiff_envelope"), 1, [def.colors]); envelope.castShadow = envelope.receiveShadow = true; envelope.frustumCulled = false;
+  const pivot = new THREE.Group(); pivot.position.y = SKIFF_SWING_PIVOT;
+  const hull = inst(modelGeometry("airship_skiff_hull"), 1, [def.colors]); hull.castShadow = hull.receiveShadow = true; hull.frustumCulled = false; hull.position.y = -SKIFF_SWING_PIVOT;
+  pivot.add(hull); group.add(envelope, pivot);
   const props = PROP_POSITIONS.map(([x, y, z], i) => {
-    const m = new THREE.Mesh(modelGeometry("airship_prop"), vmat); m.position.set(x, y, z); m.castShadow = true;
+    const m = new THREE.Mesh(modelGeometry("airship_prop"), vmat); m.position.set(x, y - SKIFF_SWING_PIVOT, z); m.castShadow = true;
     if (i) m.scale.setScalar(0.62);
-    group.add(m); return m;
+    pivot.add(m); return m;
   });
-  return { group, props };
+  return { group, pivot, props };
+}
+
+// Steam from the funnel: little puffs, one instanced mesh of a fixed number, reused round and round.
+function buildSteam(scene) {
+  const b = new Builder(); b.blob(0, 0, 0, 1, 1, 1, ["#ffffff", "#e8e8e8", "#d8d8d8"], { seed: 8, jitter: 0.2 });
+  // self-lit, so a puff reads as steam from any side and never as a dark lump
+  const N = 26, mesh = inst(b.build(), N, null, new THREE.MeshLambertMaterial({ vertexColors: true, emissive: new THREE.Color("#b8b8b8") })); mesh.frustumCulled = false; mesh.userData.noAO = true; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.name = "steam";
+  scene.add(mesh);
+  const puffs = Array.from({ length: N }, () => ({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 1 })), P = new THREE.Vector3();
+  let next = 0, timer = 0;
+  return {
+    update(dt, ship, pivot) {
+      timer -= dt;
+      if (ship && !ship.landed && timer <= 0) {
+        // chuffs with the engine, and coughs out a big one when the thrust dips
+        const coughing = ship.throttle < 0.82 && ship.throttle > 0.5;
+        timer = coughing ? 0.09 : 0.3 - ship.throttle * 0.16;
+        P.set(-9.5, 16.4 - SKIFF_SWING_PIVOT, 0); pivot.localToWorld(P);
+        const q = puffs[next]; next = (next + 1) % N;
+        Object.assign(q, { life: 1, x: P.x, y: P.y, z: P.z, vx: ship.vx * 0.55, vy: ship.vy * 0.5 + 9, vz: ship.vz * 0.55, size: coughing ? 1.9 : 1.1 });
+      }
+      puffs.forEach((q, i) => {
+        if (q.life <= 0) { mesh.setMatrixAt(i, M4.makeScale(0, 0, 0)); return; }
+        q.life -= dt * 0.8; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt;
+        const s = q.size * (1 + (1 - q.life) * 2.2) * Math.min(1, q.life * 2.5);
+        mesh.setMatrixAt(i, M4.compose(V.set(q.x, q.y, q.z), Q.identity(), S2.setScalar(Math.max(0, s))));
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    },
+  };
 }
 
 export function buildActors(scene, game) {
@@ -78,7 +112,8 @@ export function buildActors(scene, game) {
   const seeds = Array.from({ length: N }, () => [R() * 300, R() * 200, R() * 300]);
   const wrap = (v, c, span) => c + (((v - c) % span) + span * 1.5) % span - span / 2;
 
-  const RIDER_LOCAL = new THREE.Vector3(1, SHIP.deckY, 0);
+  const steam = buildSteam(scene);
+  const RIDER_LOCAL = new THREE.Vector3(1, SHIP.deckY - SKIFF_SWING_PIVOT, 0);
   return {
     player, ships, critters,
     /** Copy the state into the meshes. */
@@ -89,8 +124,12 @@ export function buildActors(scene, game) {
         v.group.position.set(s.x, s.y + bob, s.z);
         // the model faces +x: heading yaw → model yaw - 90°. Then bank about its length and pitch about its width.
         v.group.rotation.set(0, s.yaw - Math.PI / 2, 0, "YXZ");
-        v.group.rotateX(s.bank);
-        v.group.rotateZ(s.tilt);
+        // lean into the turn (top toward the inside), with a shudder when she is being pushed
+        const rattle = s.landed ? 0 : s.shake;
+        v.group.rotateX(-s.bank + Math.sin(time * 23 + i) * rattle * 0.013);
+        v.group.rotateZ(s.tilt + Math.sin(time * 29 + i) * rattle * 0.011);
+        // the hull swings on its ropes
+        v.pivot.rotation.set(s.swingRoll, 0, s.swingPitch);
         const propsOn = Math.hypot(s.x - cameraPos.x, s.y - cameraPos.y, s.z - cameraPos.z) < LOD.propellers;
         v.props.forEach((m) => { m.visible = propsOn; m.rotation.x = s.prop * (m === v.props[0] ? 1 : 1.4); });
       });
@@ -100,13 +139,15 @@ export function buildActors(scene, game) {
       if (!p.grounded && state.mode === "walk") amp = 0.25;
       if (state.mode === "boarding" || state.mode === "exiting") amp = 0.3;
       if (ridden) {
-        const g = ships[state.ships.indexOf(ridden)].group;
-        g.updateMatrixWorld();
+        const g = ships[state.ships.indexOf(ridden)].pivot;
+        g.updateWorldMatrix(true, false);
         V.copy(RIDER_LOCAL).applyMatrix4(g.matrixWorld);
         Q.setFromRotationMatrix(g.matrixWorld).multiply(new THREE.Quaternion().setFromAxisAngle(UP, Math.PI / 2));
         player.mesh.setMatrixAt(0, M4.compose(V, Q, S1)); player.mesh.instanceMatrix.needsUpdate = true;
         player.walk.array[1] = 0; player.walk.needsUpdate = true;
       } else pose(player, p.x, p.y, p.z, p.yaw, phase, amp, dt);
+      // steam from the ship you're on
+      steam.update(dt, ridden, ridden ? ships[state.ships.indexOf(ridden)].pivot : null);
       // critters
       const flockList = [...flocks.values()];
       for (const f of flockList) f.any = false;

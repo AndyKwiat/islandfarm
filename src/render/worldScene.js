@@ -9,6 +9,7 @@ import { MIST } from "../game/config.js";
 import { inst, addMist, MIST_COLOR } from "./materials.js";
 import { buildIsland } from "./islandMesh.js";
 import { buildSkyLife } from "./skyLife.js";
+import { buildDraftColumns } from "./draftColumns.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
@@ -84,15 +85,16 @@ function buildGondola(g) {
 export function buildWorldScene(scene, world, st, { groundRes = 800 } = {}) {
   const sky = buildSky(st); scene.add(sky);
   const islands = world.islands.map((isl) => { const it = buildIsland(isl, world, groundRes); scene.add(it.group); return it; });
-  const clouds = buildClouds(), wisps = buildWisps(), skyLife = buildSkyLife(scene, world), gondolas = world.gondolas.map(buildGondola);
+  const clouds = buildClouds(), wisps = buildWisps(), skyLife = buildSkyLife(scene, world), draftColumns = buildDraftColumns(world, innerHeight), gondolas = world.gondolas.map(buildGondola);
   scene.add(clouds.group, wisps.mesh, ...gondolas.map((g) => g.group));
+  if (draftColumns) scene.add(draftColumns.points);
   addMist(scene);
   return {
     islands, skyLife,
     update(time, cam) {
       sky.position.copy(cam);
       for (const it of islands) it.update(cam);
-      clouds.update(time); wisps.update(time, cam.x, cam.z); skyLife.update(time, cam);
+      clouds.update(time); wisps.update(time, cam.x, cam.z); skyLife.update(time, cam); draftColumns?.update(time, innerHeight);
       for (const g of gondolas) g.update(time);
     },
   };

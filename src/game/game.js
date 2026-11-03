@@ -13,7 +13,8 @@
 // Yaw convention: heading = (sin yaw, cos yaw) in (x, z). yaw 0 faces +z, and increasing yaw turns left.
 //
 // Modes: walk → boarding → fly → exiting → walk. Boarding and exiting are short scripted hops (HOP in config.js).
-import { STEP, WALK, SHIP, HOP } from "./config.js";
+import { STEP, WALK, SHIP, HOP, RICKETY, DRAFT } from "./config.js";
+import { draftAt } from "./drafts.js";
 import {
   compileLevel, islandAt, surfaceHeight, groundAt, pushOutOfColliders, clampToIsland, pushOutOfCliffs,
   colliderTopAt, findDismountSpot, findLandingSpot,
@@ -24,6 +25,8 @@ import { stepCritters, createCritterState } from "./critters.js";
 const CRITTER_EVERY = 4;   // ambient life steps at a quarter of the game's rate: nobody can tell, and it costs a quarter
 export const heading = (yaw) => [Math.sin(yaw), Math.cos(yaw)];
 const rightOf = (yaw) => [-Math.cos(yaw), Math.sin(yaw)];
+/** Smooth wander in about -1..1: a few sines that never quite line up. Deterministic, like everything here. */
+const wander = (t, a) => (Math.sin(t * a) + 0.6 * Math.sin(t * a * 2.3 + 1.3) + 0.4 * Math.sin(t * a * 3.7 + 2.1)) / 2;
 
 export function createGame(levelDef) {
   const world = compileLevel(levelDef);
@@ -42,6 +45,7 @@ export function createGame(levelDef) {
     ships: world.ships.map((s) => ({
       id: s.id, name: s.name, x: s.x, y: s.y, z: s.z, yaw: s.yaw, vx: 0, vy: 0, vz: 0, yawRate: 0,
       landed: true, autoLand: null, throttle: 0, bank: 0, tilt: 0, prop: 0,
+      swingRoll: 0, swingPitch: 0, swingRollV: 0, swingPitchV: 0, shake: 0, lastSpeed: 0, draftId: null, climbRate: 0,
     })),
     hop: null,                    // {t, from: [x, y, z], to: [x, z] | null}
     critters: createCritterState(world),
@@ -108,22 +112,35 @@ export function createGame(levelDef) {
     const steer = input.w || input.s || input.a || input.d || input.space;
     if (steer && s.autoLand) { s.autoLand = null; emit("autoland_cancelled"); }
     if (steer && s.landed) { s.landed = false; emit("took_off", { ship: s.id }); }
-    if (s.landed) { s.vx = s.vy = s.vz = s.yawRate = 0; s.throttle = 0; s.bank = lerp(s.bank, 0, damp(6, dt)); s.tilt = lerp(s.tilt, 0, damp(6, dt)); return; }
+    if (s.landed) { s.vx = s.vy = s.vz = s.yawRate = 0; s.throttle = 0; s.climbRate = 0; s.shake = 0; s.bank = lerp(s.bank, 0, damp(6, dt)); s.tilt = lerp(s.tilt, 0, damp(6, dt)); settleSwing(s, dt); return; }
 
     const auto = s.autoLand;
     const f = auto ? 0 : (input.w ? 1 : 0) - (input.s ? 1 : 0), t = auto ? 0 : (input.a ? 1 : 0) - (input.d ? 1 : 0);
     const v = auto ? -1 : (input.space ? 1 : 0) - (input.shift ? 1 : 0);
 
+    // the air: drafts, and how settled it is. Close to the ground and when landing itself, she is nearly steady.
+    const now = state.time, air = auto ? { draft: null, lift: 0, turbulence: 0, swirlX: 0, swirlZ: 0 } : draftAt(world.drafts, s.x, s.y, s.z, now);
+    const groundBelow = groundAt(world, s.x, s.z);
+    const calm = auto ? 0.1 : groundBelow === null ? 1 : clamp((s.y - groundBelow) / RICKETY.calmHeight, RICKETY.calmest, 1);
+    if ((air.draft?.id ?? null) !== s.draftId) {
+      s.draftId = air.draft?.id ?? null;
+      if (air.draft) emit("entered_draft", { kind: air.draft.lift > 0 ? "up" : "down" });
+    }
+
     // steering
     const spFrac = clamp(Math.hypot(s.vx, s.vz) / SHIP.maxSpeed, 0, 1);
-    const targetRate = t * lerp(SHIP.turnRate, SHIP.turnRateFast, spFrac);
+    const targetRate = t * lerp(SHIP.turnRate, SHIP.turnRateFast, spFrac)
+      + wander(now, 0.9) * RICKETY.yawWander * calm * (0.4 + spFrac)
+      + wander(now, 3.1) * DRAFT.turbulence * air.turbulence;
     s.yawRate += (targetRate - s.yawRate) * damp(SHIP.turnResponse, dt);
     s.yaw += s.yawRate * dt;
 
     // forward speed and sideways drift, measured against the new heading
     const [hx, hz] = heading(s.yaw), [rx, rz] = rightOf(s.yaw);
     let sp = s.vx * hx + s.vz * hz, side = s.vx * rx + s.vz * rz;
-    if (f > 0) sp = Math.min(sp < SHIP.maxSpeed ? sp + SHIP.accel * dt : sp, Math.max(sp, SHIP.maxSpeed));
+    // the engine coughs: thrust dips for a moment now and then
+    const cough = 1 - RICKETY.cough * clamp(wander(now, 1.7) * 2 - 0.2, 0, 1);
+    if (f > 0) sp = Math.min(sp < SHIP.maxSpeed ? sp + SHIP.accel * cough * dt : sp, Math.max(sp, SHIP.maxSpeed));
     else if (f < 0) sp = sp > 0 ? Math.max(0, sp - SHIP.brake * dt) : Math.max(-SHIP.reverseSpeed, sp - SHIP.accel * 0.5 * dt);
     else sp *= Math.exp(-SHIP.drag * dt);
     // converting drift back into forward speed keeps the ship fast through turns
@@ -142,17 +159,21 @@ export function createGame(levelDef) {
     }
 
     // vertical
-    let climb = auto ? -SHIP.autoLandSpeed : v * SHIP.climbSpeed;
+    let climb = auto ? -SHIP.autoLandSpeed : v * SHIP.climbSpeed + air.lift + wander(now, 0.6) * RICKETY.float * calm;
     // soft walls: nothing here ever punishes you, it just eases you back
-    climb = clamp(climb, -SHIP.climbSpeed * clamp((s.y - SHIP.floor) / 80, 0, 1), SHIP.climbSpeed * clamp((SHIP.ceiling - s.y) / 80, 0, 1));
+    if (climb < 0) climb *= clamp((s.y - SHIP.floor) / 80, 0, 1);
+    else climb *= clamp((SHIP.ceiling - s.y) / 80, 0, 1);
     if (s.y < SHIP.floor) climb = (SHIP.floor - s.y) * 2;
     if (s.y > SHIP.ceiling) climb = (SHIP.ceiling - s.y) * 2;
     s.vy += (climb - s.vy) * damp(SHIP.climbResponse, dt);
+    s.climbRate = s.vy;
     const dist = Math.hypot(s.x, s.z);
     if (dist > SHIP.worldRadius) { const k = ((dist - SHIP.worldRadius) * 1.5 * dt) / dist; s.vx -= s.x * k; s.vz -= s.z * k; }
 
     // integrate and collide
-    const bx = s.x + s.vx * dt, bz = s.z + s.vz * dt;
+    // the wind carries her along a little, whatever she does; it is not part of her own speed
+    const windX = wander(now, 0.53) * RICKETY.gust * calm + air.swirlX, windZ = wander(now + 40, 0.47) * RICKETY.gust * calm + air.swirlZ;
+    const bx = s.x + (s.vx + windX) * dt, bz = s.z + (s.vz + windZ) * dt;
     let nx = bx, nz = bz; s.y += s.vy * dt;
     [nx, nz] = pushOutOfCliffs(world, nx, nz, s.y, SHIP.radius);
     [nx, nz] = pushOutOfColliders(world, nx, nz, SHIP.radius * 0.7, s.y);
@@ -179,10 +200,26 @@ export function createGame(levelDef) {
 
     // visual attitude only: bank into turns, nose follows throttle and climb
     const spNow = Math.hypot(s.vx, s.vz) / SHIP.maxSpeed;
-    s.throttle = lerp(s.throttle, Math.abs(f) || (spNow > 0.1 ? 0.3 : 0.12), damp(4, dt));
+    s.throttle = lerp(s.throttle, Math.abs(f) ? cough : (spNow > 0.1 ? 0.3 : 0.12), damp(4, dt));
     s.bank = lerp(s.bank, clamp(s.yawRate * (0.1 + spNow * 0.26), -0.5, 0.5), damp(5, dt));
     s.tilt = lerp(s.tilt, clamp(s.vy / 500, -0.2, 0.2) - f * 0.05 * (1 - spNow), damp(4, dt));
+    // she rattles when pushed hard, and in rough air
+    s.shake = lerp(s.shake, clamp(spNow * spNow * 0.5 * calm + air.turbulence + Math.abs(f) * 0.08, 0, 1), damp(6, dt));
+    // the hull swings out on its ropes: outward in a turn, back when you open the throttle, forward when you brake
+    const speedNow = Math.hypot(s.vx, s.vz), thrust = (speedNow - s.lastSpeed) / dt;
+    s.lastSpeed = speedNow;
+    swing(s, dt, -s.yawRate * speedNow * RICKETY.swingTurn + wander(now, 3.1) * air.turbulence * 3, -thrust * RICKETY.swingThrust);
   }
+
+  /** The hull as a spring pendulum under the envelope; drive is what pushes it. */
+  function swing(s, dt, driveRoll, drivePitch) {
+    const k = RICKETY.swingSpring, c = RICKETY.swingDamping, max = RICKETY.swingMax;
+    s.swingRollV += (driveRoll - k * s.swingRoll - c * s.swingRollV) * dt;
+    s.swingPitchV += (drivePitch - k * s.swingPitch - c * s.swingPitchV) * dt;
+    s.swingRoll = clamp(s.swingRoll + s.swingRollV * dt, -max, max);
+    s.swingPitch = clamp(s.swingPitch + s.swingPitchV * dt, -max, max);
+  }
+  const settleSwing = (s, dt) => swing(s, dt, 0, 0);
 
   function startExit(s) {
     const spot = findDismountSpot(world, s.x, s.z, s.yaw);
@@ -258,7 +295,10 @@ export function createGame(levelDef) {
       if (state.mode === "fly") { p.x = s.x; p.y = s.y + SHIP.deckY; p.z = s.z; p.yaw = s.yaw; }
     }
     // propellers run while the ship is flying
-    for (const s of state.ships) s.prop = (s.prop + (s === riding() && !s.landed ? 6 + s.throttle * 40 : 0) * dt) % (Math.PI * 2);
+    for (const s of state.ships) {
+      s.prop = (s.prop + (s === riding() && !s.landed ? 6 + s.throttle * 40 : 0) * dt) % (Math.PI * 2);
+      if (s !== riding()) settleSwing(s, dt);
+    }
 
     if (++critterTick >= CRITTER_EVERY) { critterTick = 0; stepCritters(state, world, dt * CRITTER_EVERY, R); }
 

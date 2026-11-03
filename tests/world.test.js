@@ -122,3 +122,23 @@ describe("collider grid", () => {
     }
   });
 });
+
+describe("drafts in the main level", () => {
+  const world = compileLevel(LEVELS.main);
+  test("mostly updrafts, some downdrafts", () => {
+    const up = world.drafts.filter((d) => d.lift > 0).length, down = world.drafts.filter((d) => d.lift < 0).length;
+    expect(up).toBe(LEVELS.main.drafts.up); expect(down).toBe(LEVELS.main.drafts.down); expect(up).toBeGreaterThan(down);
+  });
+  test("they sit in the gaps, never touching land or each other", () => {
+    for (const d of world.drafts) {
+      for (const i of world.islands) expect(Math.hypot(d.x - i.x, d.z - i.z)).toBeGreaterThan(i.outerRadius + d.r);
+      for (const o of world.drafts) if (o !== d) expect(Math.hypot(d.x - o.x, d.z - o.z)).toBeGreaterThan(d.r + o.r);
+    }
+  });
+  test("there's one to find near home", () => {
+    expect(world.drafts.some((d) => d.lift > 0 && Math.hypot(d.x, d.z) < 1200)).toBe(true);
+  });
+  test("every draft can be reached inside the flyable world", () => {
+    for (const d of world.drafts) expect(Math.hypot(d.x, d.z)).toBeLessThan(SHIP.worldRadius);
+  });
+});

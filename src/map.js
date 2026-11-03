@@ -27,6 +27,13 @@ function paintBase(world, view, { labels }) {
     path(); g.save(); g.translate(0, Math.max(1, size * 0.003)); g.fillStyle = RIM; g.fill(); g.restore();   // a little depth under the land
     path(); g.fillStyle = LAND; g.fill(); g.strokeStyle = LAND_DARK; g.lineWidth = 1; g.stroke();
   }
+  // drafts: gold rings with a lift mark for updrafts, blue with the mark turned down for downdrafts
+  for (const d of world.drafts) {
+    const [x, y] = view.toMap(d.x, d.z), r = Math.max(labels ? 5 : 2.2, d.r * view.scale), up = d.lift > 0;
+    g.strokeStyle = up ? "#c88a20" : "#3a6a9a"; g.lineWidth = labels ? 1.6 : 1;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
+    if (labels) { const k = up ? -1 : 1; g.beginPath(); g.moveTo(x - r * 0.5, y - k * r * 0.25); g.lineTo(x, y + k * r * 0.45); g.lineTo(x + r * 0.5, y - k * r * 0.25); g.stroke(); }
+  }
   // gondola lines
   g.strokeStyle = ROPE; g.lineWidth = labels ? 2 : 1.25; g.setLineDash(labels ? [5, 4] : [2.5, 2.5]);
   for (const line of world.gondolas) { const [ax, ay] = view.toMap(line.from[0], line.from[2]), [bx, by] = view.toMap(line.to[0], line.to[2]); g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }

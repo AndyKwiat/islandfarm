@@ -8,6 +8,7 @@ export function mapView(world, size, { pad = 14, minRadius = 3, exaggerate = 1 }
     x0 = Math.min(x0, i.x - i.outerRadius); x1 = Math.max(x1, i.x + i.outerRadius);
     z0 = Math.min(z0, i.z - i.outerRadius); z1 = Math.max(z1, i.z + i.outerRadius);
   }
+  for (const d of world.drafts ?? []) { x0 = Math.min(x0, d.x - d.r); x1 = Math.max(x1, d.x + d.r); z0 = Math.min(z0, d.z - d.r); z1 = Math.max(z1, d.z + d.r); }
   const span = Math.max(x1 - x0, z1 - z0, 1), scale = (size - pad * 2) / span, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const toMap = (x, z) => [size / 2 + (x - cx) * scale, size / 2 + (z - cz) * scale];
   /** How much an island's outline is blown up on this map. */

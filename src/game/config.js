@@ -21,17 +21,17 @@ export const WALK = {
 };
 
 export const SHIP = {
-  maxSpeed: 340,      // top forward speed
-  reverseSpeed: 90,
-  accel: 420,         // forward thrust
-  brake: 620,         // S while moving forward
-  drag: 1.0,          // speed lost per second with no throttle (fraction)
-  sideGrip: 5.0,      // how quickly sideways drift is killed: high = goes where it points
-  turnRate: 2.5,      // yaw rate at low speed
-  turnRateFast: 1.8,  // yaw rate at top speed
-  turnResponse: 9,    // how quickly yaw rate follows the keys
-  climbSpeed: 120,    // Space / Shift vertical speed
-  climbResponse: 6,
+  maxSpeed: 272,      // top forward speed
+  reverseSpeed: 70,
+  accel: 230,         // forward thrust: she takes a moment to get going
+  brake: 400,         // S while moving forward
+  drag: 0.55,         // speed lost per second with no throttle (fraction): she coasts a long way
+  sideGrip: 2.1,      // how quickly sideways drift is killed: low = she slides through turns
+  turnRate: 1.75,     // yaw rate at low speed: slow down to turn tighter
+  turnRateFast: 1.1,  // yaw rate at top speed
+  turnResponse: 3.4,  // how quickly yaw rate follows the keys: she is slow to start turning, and to stop
+  climbSpeed: 92,     // Space / Shift vertical speed: updrafts beat this easily
+  climbResponse: 2.8,
   radius: 15,         // collision radius of the hull
   ceiling: 1100,      // gently pushed down above this
   floor: 110,         // gently pushed up below this (the mist is not a place to land)
@@ -42,6 +42,29 @@ export const SHIP = {
   autoLandSpeed: 110,
   boardRange: 24,     // how close the character must be to board
   deckY: 6.2,         // y of the deck in the model, where the rider stands
+};
+
+// How rickety the ship is. All of it fades out close to the ground, so landing stays easy. Set the amounts to 0 for a steady ship.
+export const RICKETY = {
+  gust: 13,           // sideways wander from the wind (units per second)
+  float: 6,           // up and down wander in level flight (units per second)
+  yawWander: 0.07,    // how much the nose hunts about (radians per second)
+  cough: 0.3,         // the engine's thrust drops by up to this fraction, now and then
+  calmHeight: 110,    // the air settles over ground below this height
+  calmest: 0.2,       // what is left of it at ground level
+  // the hull hangs from the envelope and swings like a pendulum
+  swingSpring: 15, swingDamping: 1.7,  // low damping: it takes a few swings to settle
+  swingTurn: 0.021, swingThrust: 0.012, swingMax: 0.5,
+};
+
+export const DRAFT = {
+  up: [150, 250],     // updraft speed: well above the engine's climb
+  down: [90, 150],    // downdraft speed
+  radius: [55, 105],
+  base: 120, top: [640, 920],
+  swirl: 30,          // sideways push round the column
+  turbulence: 0.55,   // how much it shakes the nose about
+  spread: 3100,       // how far from the centre of the world they are placed
 };
 
 export const HOP = {

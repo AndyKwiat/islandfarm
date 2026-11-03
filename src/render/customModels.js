@@ -20,8 +20,10 @@ export function envelope(b, x0, x1, cy, rmax, n, cols) {
   }
 }
 
-/** The player's little airship: a boat hull on skids, slung under a striped envelope, a brass boiler at the stern. */
-function airshipSkiff(b) {
+const SKIFF_Y = 28.5;   // the middle of the envelope
+
+/** The player's little airship is two parts, so the hull can swing on its ropes: this is the boat hull on skids, with a brass boiler. */
+function skiffHull(b) {
   // skids
   for (const z of [-3.6, 3.6]) {
     b.beam([-11, 0.5, z], [12, 0.5, z], 0.45, C.woodD);
@@ -42,6 +44,9 @@ function airshipSkiff(b) {
   }
   b.quad([-13, yk, 1.1], [-13, yk, -1.1], [-13, yd, -2.2], [-13, yd, 2.2], C.woodD);
   railing(b, [-10, -4], [8, -4.1], yd, 1.5); railing(b, [-10, 4], [8, 4.1], yd, 1.5); railing(b, [-13, -2], [-13, 2], yd, 1.5);
+  // patched up over the years: mismatched planks, dangling sandbags
+  for (const [x, z, w] of [[-5, 1, 1.4], [3, -1, 1.1]]) { const s = Math.sign(z), a = hull[1], side = a[1] * 0.97 + 0.08; b.quad(s > 0 ? [x - w, yd - 3, side] : [x + w, yd - 3, -side], s > 0 ? [x + w, yd - 3, side] : [x - w, yd - 3, -side], s > 0 ? [x + w, yd - 1.8, side] : [x - w, yd - 1.8, -side], s > 0 ? [x - w, yd - 1.8, side] : [x + w, yd - 1.8, -side], C.woodL); }
+  for (const [x, z, h] of [[-7, 4.5, 2.2], [1, 4.6, 3], [5, -4.7, 2.5], [-3, -4.5, 1.8]]) { b.beam([x, yd + 1.3, z], [x, yd - h, z * 1.06], 0.08, C.rope); b.blob(x, yd - h - 0.5, z * 1.06, 0.7, 0.9, 0.7, "#b89a68", { seed: 4 }); }
   // brass boiler and funnels at the stern
   b.cyl(-9.5, yd, 0, 2.4, yd + 5.2, 2.4, 8, BRASS, { top: BRASSD });
   b.cyl(-9.5, yd + 1.2, 0, 2.55, yd + 1.8, 2.55, 8, COPPER, { top: false, bottom: false });
@@ -52,8 +57,19 @@ function airshipSkiff(b) {
   // helm: a post and a little brass wheel
   b.cyl(6, yd, 0, 0.4, yd + 3.6, 0.3, 6, C.woodD);
   b.save(() => { b.t(5.6, yd + 3.8, 0).rz(Math.PI / 2 - 0.5); b.cyl(0, -0.2, 0, 1.3, 0.2, 1.3, 8, BRASS, { top: BRASSD }); });
+  // rigging between the hull and the envelope
+  for (const x of [-8, 0, 8]) for (const s of [-1, 1]) b.beam([x, yd + 1.5, s * 4], [x * 1.25, SKIFF_Y - 8, s * 5.5], 0.13, C.rope);
+  b.beam([14.5, yd, 0], [18, SKIFF_Y - 6, 0], 0.13, C.rope); b.beam([-13, yd, 0], [-18, SKIFF_Y - 7, 0], 0.13, C.rope);
+  lantern(b, 13, yd + 0.4, 0, 0.7);
+  lantern(b, 0, SKIFF_Y - 9.6, 0, 0.7);
+  // little outrigger pods for the side propellers
+  for (const s of [-1, 1]) { b.beam([-3, yd - 1, s * 4.2], [-3, yd + 1.5, s * 9], 0.3, C.iron); b.cyl(-3, yd + 0.5, s * 9, 0.9, yd + 2.5, 0.9, 6, BRASS); }
+}
+
+/** ... and the striped envelope above it, with one or two patches. */
+function skiffEnvelope(b) {
+  const Y = SKIFF_Y;
   // envelope: slot-coloured stripes, so each ship can have its own cloth
-  const Y = 28.5;
   envelope(b, -25, 25, Y, 10, 12, [CLOTHC(1), "#f4e8c8"]);
   // brass hoops round the envelope
   for (const x of [-14, 0, 14]) { const r = 10 * Math.pow(Math.sin(Math.PI * (((x + 25) / 50) * 0.96 + 0.02)), 0.62) + 0.15;
@@ -64,14 +80,14 @@ function airshipSkiff(b) {
     b.quad(P(-13, 7), P(-21, 13.5), P(-26, 13.5), P(-23, 2), ROOF(1));
     b.quad(P(-23, 2), P(-26, 13.5), P(-21, 13.5), P(-13, 7), ROOF(0.75));
   }
-  // rigging between the hull and the envelope
-  for (const x of [-8, 0, 8]) for (const s of [-1, 1]) b.beam([x, yd + 1.5, s * 4], [x * 1.25, Y - 8, s * 5.5], 0.13, C.rope);
-  b.beam([14.5, yd, 0], [18, Y - 6, 0], 0.13, C.rope); b.beam([-13, yd, 0], [-18, Y - 7, 0], 0.13, C.rope);
-  lantern(b, 13, yd + 0.4, 0, 0.7);
-  lantern(b, 0, Y - 9.6, 0, 0.7);
-  // little outrigger pods for the side propellers
-  for (const s of [-1, 1]) { b.beam([-3, yd - 1, s * 4.2], [-3, yd + 1.5, s * 9], 0.3, C.iron); b.cyl(-3, yd + 0.5, s * 9, 0.9, yd + 2.5, 0.9, 6, BRASS); }
+  // patches on the gas bag, sitting just proud of it
+  for (const [x, a, w, col] of [[9, 0.55, 2.4, "#c8b890"], [-8, 2.3, 2, "#a8c0c8"], [13, -1.2, 1.7, "#d8c8a0"]]) {
+    const r = 10 * Math.pow(Math.sin(Math.PI * (((x + 25) / 50) * 0.96 + 0.02)), 0.62) + 0.14, P = (dx, da) => { const q = a + da; return [x + dx, Y + Math.cos(q) * r, Math.sin(q) * r]; }, d = w / r;
+    b.quad(P(-w, -d), P(w, -d), P(w, d), P(-w, d), col);
+  }
 }
+/** The whole ship, as one mesh, for the ones flying past in the distance. */
+function airshipSkiff(b) { skiffHull(b); skiffEnvelope(b); }
 
 /** One propeller, turning about x, drawn at the origin. Spun by render/actors.js. */
 function airshipProp(b) {
@@ -283,7 +299,7 @@ function bird(o) {
 }
 
 Object.assign(MODELS, {
-  airship_skiff: airshipSkiff, airship_prop: airshipProp, fence, scarecrow, landing_pad: landingPad,
+  airship_skiff: airshipSkiff, airship_skiff_hull: skiffHull, airship_skiff_envelope: skiffEnvelope, airship_prop: airshipProp, fence, scarecrow, landing_pad: landingPad,
   airship_junk: airshipJunk, airship_dragon: airshipDragon, airship_paddle: airshipPaddle, airship_liner: airshipLiner, airship_ornithopter: airshipOrnithopter, airship_barge: airshipBarge, sky_lantern: skyLantern,
   bird_swallow: bird({ span: 5.5, len: 3.6, body: "#2a3a6a", belly: "#f4e8d8", wing: "#26345e", tail: "#20284e", tailFork: 0.9, beak: "#2a1f2d", cap: "#c0483a", r: 0.42 }),
   bird_finch: bird({ span: 3.8, len: 2.6, body: "#b08a50", belly: "#f0d060", wing: "#7a5a38", tail: "#6a4a30", r: 0.5, beak: "#e0a040" }),
@@ -293,4 +309,5 @@ Object.assign(MODELS, {
   bird_eagle: bird({ span: 32, len: 13, body: "#6a4a30", head: "#f4efe2", wing: "#5e4028", tip: "#3a2818", tail: "#f0ebe0", r: 1.9, beak: "#f0c040", beakLen: 0.09, tailWidth: 3, chord: 7 }),
   bird_roc: bird({ span: 92, len: 38, body: "#c8402a", belly: "#f0c040", head: "#e0a030", wing: "#d8502e", tip: "#f0c040", tail: "#c8402a", under: "#f0a040", tipUnder: "#e08020", r: 5, beak: "#f4e8c8", beakLen: 0.1, tailWidth: 8, chord: 19, cap: "#2aa0a0", streamers: ["#f0c040", "#2aa0a0"] }),
 });
+export const SKIFF_SWING_PIVOT = SKIFF_Y - 10;   // where the hull's ropes meet the envelope
 export const PROP_POSITIONS = [[-15.4, 8.4, 0], [-3, 7.6, -9], [-3, 7.6, 9]];   // where propellers go on the skiff

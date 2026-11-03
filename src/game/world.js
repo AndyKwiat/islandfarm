@@ -5,6 +5,7 @@
 // compileLevel() → { islands, props, colliders, ships, critters, spawn, ... } plus the query functions at the bottom.
 import { WALK, SHIP } from "./config.js";
 import { PROPS } from "./props.js";
+import { createDrafts } from "./drafts.js";
 import { rng, clamp, smoothstep } from "./rng.js";
 
 const TAU = Math.PI * 2;
@@ -101,11 +102,13 @@ export function compileLevel(def) {
     return { from: [low.x, low.y + 27, low.z - 28], to: [high.x, high.y + 19, high.z - 10.5], period: g.period ?? 40 };
   });
 
-  return {
+  const world = {
     grid: buildGrid(colliders),
     id: def.id, name: def.name ?? def.id, islands, byId, props, colliders, ships, critters, spawn, fields, gondolas, gondolaIslands: def.gondolas ?? [],
     skySpec: def.sky ?? null, views: Object.fromEntries(Object.entries(def.views ?? {}).map(([name, v]) => [name, resolveView(v, byId)])),
   };
+  world.drafts = createDrafts(world, def.drafts);
+  return world;
 }
 
 // Colliders are looked up through a coarse grid: the character, the ship, the critters and the camera ask very often, and

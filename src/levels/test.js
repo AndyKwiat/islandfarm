@@ -31,6 +31,17 @@ export const hop = {
   views: { side: [[600, 420, 250], [0, 300, 250]] },
 };
 
+/** flight: a landing island with an updraft and a downdraft in plain view, for trying the handling and the drafts. */
+export const flight = {
+  id: "flight",
+  name: "Flight test",
+  spawn: { island: "a", x: 0, z: 30 },
+  islands: [{ id: "a", name: "Island", x: 0, z: 0, top: 300, radius: 110, roughness: 0.15 }],
+  ships: [{ id: "s", island: "a", x: 0, z: 0, yaw: 0 }],
+  drafts: { list: [{ x: 0, z: 420, r: 100, lift: 220, top: 800 }, { x: 420, z: 0, r: 90, lift: -130 }] },
+  views: { up: [[420, 440, 700], [0, 480, 420]], down: [[700, 460, 340], [420, 380, 0]] },
+};
+
 /** mist: a stack of islands at every height. For tuning the fade into nothing. */
 export const mist = {
   id: "mist",

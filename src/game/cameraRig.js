@@ -75,6 +75,9 @@ export function createCameraRig(game) {
     [pos[0], pos[2]] = pushOutOfCliffs(world, pos[0], pos[2], pos[1], 8);
     const g = groundAt(world, pos[0], pos[2]);
     if (g !== null) pos[1] = Math.max(pos[1], g + 6);
+    // the camera feels the ship rattle, just a little
+    const k = s.shake * 0.5, t = state.time;
+    pos[0] += Math.sin(t * 31) * k; pos[1] += Math.sin(t * 37 + 1) * k;
     return {
       pos,
       target: [s.x + shx * F.lookAhead * speed, s.y + F.targetHeight, s.z + shz * F.lookAhead * speed],

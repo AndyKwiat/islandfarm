@@ -13,8 +13,8 @@ bun run dev          # http://localhost:3012
 
 | | On foot | In the airship |
 |---|---|---|
-| **W / S** (or arrows) | run forward / back | throttle / brake and reverse |
-| **A / D** | run left / right | turn |
+| **W / S** (or arrows) | run forward / back | throttle / brake and reverse (she coasts: plan ahead) |
+| **A / D** | run left / right | turn (wide at speed: slow down for tight turns) |
 | **Space** | jump | climb |
 | **Shift** | sprint | descend (hold over ground to land) |
 | **E** (or Enter) | board a nearby ship | land by itself and jump out / jump out |
@@ -31,7 +31,7 @@ The sky is busy (`sky` in `main.js`): skiffs, balloons, cargo ships, flying junk
 liners, ornithopters and crate barges on their rounds; swallows, finches and pigeons round the islands; geese and cranes in Vs;
 eagles soaring over the rocks; three giant rocs high up; drifting sky lanterns. Scenery only: it never touches you.
 
-Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing),
+Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: take-off and landing), `flight` (an updraft and a downdraft in plain view),
 `mist` (islands at every height: tuning the fade), `gallery` (every prop on one island).
 
 ## Layout
@@ -44,12 +44,13 @@ Test levels (`?level=…`): `flat` (walking and collision), `hop` (two islands: 
 | `src/game/props.js` | each prop's collision shape and how far the ground is levelled around it |
 | `src/game/cameraRig.js` | both cameras, as plain math: third-person on foot, chase in the air, blended on a mode change |
 | `src/game/lod.js` | detail level by distance, adaptive quality: decisions only, numbers in `LOD` and `QUALITY` in config.js |
+| `src/game/drafts.js` | updrafts and downdrafts: placing them, and the air at any point |
 | `src/game/skyTraffic.js` | airships and birds: types, generated routes, positions as a pure function of time |
 | `src/game/critters.js` | animals and villagers pottering about |
 | `src/game/mapView.js` | map projection (world to pixels, fits the whole level), used by `src/map.js` |
 | `src/game/pilot.js`, `scenarios.js` | autopilots that press real keys; scripted playthroughs |
 | `src/levels/` | level data, plain objects: `main.js`, test levels, the registry `index.js`, and `districts.js`: town pieces (street, hamlet, temple, farm, garden, estate, fort, dock, monument, grove) |
-| `src/render/` | `renderer.js` (pipeline, lights) · `materials.js` (slots, walk shader, rock, **mist**) · `islandMesh.js` (top, cliff, ground paint, cover, crops, an island's detail levels) · `bake.js` (props merged per island, automatic far proxies) · `worldScene.js` (sky, clouds, wisps, gondola) · `skyLife.js` (instanced airships and birds) · `actors.js` (character, ships, critters, landing ring, wind) · `customModels.js` (skiff, fence, scarecrow, pad) · `debug.js` |
+| `src/render/` | `renderer.js` (pipeline, lights) · `materials.js` (slots, walk shader, rock, **mist**) · `islandMesh.js` (top, cliff, ground paint, cover, crops, an island's detail levels) · `bake.js` (props merged per island, automatic far proxies) · `worldScene.js` (sky, clouds, wisps, gondola) · `skyLife.js` (instanced airships and birds) · `draftColumns.js` (drafts, one animated Points draw) · `actors.js` (character, ships, critters, landing ring, wind) · `customModels.js` (skiff, fence, scarecrow, pad) · `debug.js` |
 | `src/engine/` | copied from the tech demo (`~/waldo/polygon`, commit `fa24512`): `geo.js` (low-poly Builder), `models.js`, `figures.js`, `people.js`, `sky.js`. Changes: `railing`, `crate`, `spindle` are exported, `spindle` winds its faces outward (the demo's were inside out), and `box({ top: false })` skips the top face (it used to paint it magenta) |
 | `src/main.js`, `input.js`, `hud.js`, `map.js` | browser wiring; `window.game`; keyboard and mouse; on-screen text; minimap and map screen |
 | `tests/` | `bun test`: world, walking, ship, camera, and every scenario |
@@ -65,6 +66,8 @@ and headless at thousands of times real time. And `src/render/` only reads the s
   colour, gone by `MIST.bottom`, mixed in log space together with distance fog. The sky dome's horizon and everything below
   it is that same colour, so no horizon line exists. It is HDR because ACES tone mapping would turn plain white grey.
 - **On foot** you can't fall: an invisible wall sits just inside the rim (`WALK.edgeMargin`), boulders hint at it.
+- **The ship is rickety, not hard.** She is slow to start and stop turning, slides through corners, coasts a long way and turns tighter when you slow down. The engine coughs, wind nudges her along, and the hull swings on its ropes (a spring pendulum in `game.js`; the hull and envelope are separate meshes). All of it fades close to the ground, so landing stays easy; `RICKETY` in config.js is the dial, and setting its amounts to 0 gives a steady ship.
+- **Drafts** (`drafts.js`) are columns of moving air in the gaps between islands, visible as haze with petals rising or grey streaks falling, and marked on both maps. An updraft climbs about twice as fast as the engine; passing through gives a kick, and staying in one (hold position, it spins you gently) is the quick way up. Downdrafts push harder than you can climb. Auto-land ignores them.
 - **The ship can't get into trouble:** cliffs and buildings slide it aside; the mist, the ceiling and the world edge ease it
   back. Nothing crashes. Ground under it gets a landing ring: green means E will work, orange means a prop is in the way.
 - **E in the air** picks a clear spot (`findLandingSpot`), drifts there, descends and jumps out. Any steering key cancels.
@@ -94,7 +97,7 @@ What does it, biggest first:
 The on-screen readout under the title shows fps, draw calls and triangles. Headless runs use software GL, so frame rates there say nothing about a real GPU: judge those on a real machine.
 
 ## Recipes
-- **Change how it feels:** `src/game/config.js`, then `bun test`. The tests in `tests/ship.test.js` pin "fast" and "nimble" as numbers.
+- **Change how it feels:** `src/game/config.js`, then `bun test`. The tests in `tests/ship.test.js` pin how she handles as numbers, so a change of feel will fail them: update them on purpose.
 - **Add an island or props:** edit `src/levels/main.js`, with coordinates local to the island. `bun test` reports what fell off, with the rim radius there. The maps pick it up by themselves.
 - **Add a gondola line:** two islands directly north and south of each other, a `gondola_station_low` on the southern one and a `gondola_station_high` on the northern one (both `rot: 1`), and an entry in `gondolas`.
 - **Fill a big island:** add a line to `BIG TOWNS` in `src/levels/main.js`, like `street("market", -210, 170, { count: 3 })`. New kinds of district go in `src/levels/districts.js`. `bun test` catches buildings standing in each other.

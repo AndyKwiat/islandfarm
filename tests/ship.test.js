@@ -43,23 +43,43 @@ describe("boarding", () => {
 });
 
 describe("flight feel", () => {
-  test("fast: top speed inside a second or so", () => {
-    const g = aboard(); g.advance(0.5, { space: true }); g.advance(1.2, { w: true, space: true });
-    expect(Math.hypot(g.riding().vx, g.riding().vz)).toBeGreaterThan(SHIP.maxSpeed * 0.95);
+  test("top speed is 80% of what it was, and takes a moment to reach", () => {
+    expect(SHIP.maxSpeed).toBe(272);
+    const g = aboard(), s = g.riding(); g.advance(0.5, { space: true });
+    g.advance(0.5, { w: true, space: true }); expect(Math.hypot(s.vx, s.vz)).toBeLessThan(SHIP.maxSpeed * 0.65);
+    g.advance(1.3, { w: true, space: true }); expect(Math.hypot(s.vx, s.vz)).toBeGreaterThan(SHIP.maxSpeed * 0.95);
   });
-  test("nimble: a full-speed 180 takes under 2.5 seconds and goes where it points", () => {
-    const g = aboard(); g.advance(0.5, { space: true }); g.advance(1.5, { w: true, space: true });
-    const s = g.riding(), y0 = s.yaw;
-    let t = 0; while (Math.abs(s.yaw - y0) < Math.PI && t < 5) { g.advance(0.05, { w: true, a: true, space: true }); t += 0.05; }
-    expect(t).toBeLessThan(2.5);
-    g.advance(0.5, { w: true, space: true });
-    const [hx, hz] = [Math.sin(s.yaw), Math.cos(s.yaw)], speed = Math.hypot(s.vx, s.vz);
-    expect((s.vx * hx + s.vz * hz) / speed).toBeGreaterThan(0.95);
-    expect(speed).toBeGreaterThan(SHIP.maxSpeed * 0.9);
+  test("heavy but manageable: a full-speed 180 takes about 3 seconds, and she slides on the way round", () => {
+    const g = aboard(), s = g.riding(); g.advance(0.5, { space: true }); g.advance(2, { w: true, space: true });
+    const y0 = s.yaw; let t = 0, maxSlip = 0;
+    while (Math.abs(s.yaw - y0) < Math.PI && t < 6) {
+      g.advance(0.05, { w: true, a: true, space: true }); t += 0.05;
+      const sp = Math.hypot(s.vx, s.vz), along = (s.vx * Math.sin(s.yaw) + s.vz * Math.cos(s.yaw)) / sp;
+      maxSlip = Math.max(maxSlip, Math.acos(Math.min(1, along)));
+    }
+    expect(t).toBeGreaterThan(2.4); expect(t).toBeLessThan(3.8);
+    expect(maxSlip).toBeGreaterThan(0.15);      // the nose leads the direction of travel: that's the skill
+    g.advance(1.6, { w: true, space: true });
+    expect((s.vx * Math.sin(s.yaw) + s.vz * Math.cos(s.yaw)) / Math.hypot(s.vx, s.vz)).toBeGreaterThan(0.95);   // and it still sorts itself out
+    expect(Math.hypot(s.vx, s.vz)).toBeGreaterThan(SHIP.maxSpeed * 0.85);
   });
-  test("stops quickly when you let go and brake", () => {
-    const g = aboard(); g.advance(0.5, { space: true }); g.advance(1.5, { w: true, space: true });
-    g.advance(0.7, { s: true });
+  test("slowing down lets you turn tighter", () => {
+    const radiusAt = (speedUp) => {
+      const g = aboard(), s = g.riding(); g.advance(0.5, { space: true }); g.advance(speedUp, { w: true, space: true });
+      const y0 = s.yaw; let t = 0; while (Math.abs(s.yaw - y0) < 1.5 && t < 6) { g.advance(0.05, { a: true, space: true }); t += 0.05; }
+      return t;
+    };
+    expect(radiusAt(0.1)).toBeLessThan(radiusAt(2));
+  });
+  test("she doesn't start or stop turning at once", () => {
+    const g = aboard(), s = g.riding(); g.advance(1, { space: true });
+    g.advance(0.1, { a: true, space: true }); expect(s.yawRate).toBeLessThan(SHIP.turnRate * 0.5);
+    g.advance(1.5, { a: true, space: true }); const r = s.yawRate; expect(r).toBeGreaterThan(SHIP.turnRate * 0.8);
+    g.advance(0.1, { space: true }); expect(s.yawRate).toBeGreaterThan(r * 0.5);
+  });
+  test("brakes still work", () => {
+    const g = aboard(); g.advance(0.5, { space: true }); g.advance(2, { w: true, space: true });
+    g.advance(0.8, { s: true });
     expect(Math.hypot(g.riding().vx, g.riding().vz)).toBeLessThan(40);
   });
   test("a turns left, d turns right (seen from behind the ship)", () => {
@@ -73,14 +93,79 @@ describe("flight feel", () => {
   test("space climbs and shift descends", () => {
     const g = aboard(), s = g.riding(), y0 = s.y;
     g.advance(1, { space: true });
-    expect(s.y).toBeGreaterThan(y0 + 60);
+    expect(s.y).toBeGreaterThan(y0 + 40);
     const y1 = s.y; g.advance(0.5, { shift: true }); g.advance(0.3, {});
     expect(s.y).toBeLessThan(y1);
   });
-  test("altitude holds with no input", () => {
-    const g = aboard(), s = g.riding(); g.advance(1, { space: true }); g.advance(1, {});
-    const y = s.y; g.advance(2, {});
-    expect(Math.abs(s.y - y)).toBeLessThan(0.5);
+  test("level flight wanders a little but stays about level", () => {
+    const g = aboard(), s = g.riding(); g.advance(2, { space: true }); g.advance(1.5, {});
+    const y = s.y; let spread = 0;
+    for (let i = 0; i < 20; i++) { g.advance(0.5, {}); spread = Math.max(spread, Math.abs(s.y - y)); }
+    expect(spread).toBeGreaterThan(0.2); expect(spread).toBeLessThan(25);
+  });
+});
+
+describe("rickety", () => {
+  test("the hull swings out in a turn and takes a while to settle", () => {
+    const g = aboard(), s = g.riding(); g.advance(1.5, { space: true }); g.advance(1.5, { w: true });
+    let max = 0; for (let i = 0; i < 30; i++) { g.advance(0.05, { w: true, a: true }); max = Math.max(max, Math.abs(s.swingRoll)); }
+    expect(max).toBeGreaterThan(0.08);
+    expect(s.swingRoll).toBeLessThan(0);        // turning left, the hull swings to the right
+    g.advance(1, { w: true }); let crossings = 0, prev = s.swingRoll;
+    for (let i = 0; i < 60; i++) { g.advance(0.05, { w: true }); if (Math.sign(s.swingRoll) !== Math.sign(prev)) crossings++; prev = s.swingRoll; }
+    expect(crossings).toBeGreaterThan(0);       // it rocks back through the middle, not just returns
+  });
+  test("opening the throttle throws the hull back", () => {
+    const g = aboard(), s = g.riding(); g.advance(1.5, { space: true });
+    g.advance(0.25, { w: true }); expect(s.swingPitch).toBeLessThan(-0.02);
+  });
+  test("wind carries you off a straight line, a bit", () => {
+    const g = aboard(), s = g.riding(); g.advance(2, { space: true }); g.advance(8, {});
+    const x = s.x, z = s.z; g.advance(4, {}); const moved = Math.hypot(s.x - x, s.z - z);
+    expect(moved).toBeGreaterThan(1); expect(moved).toBeLessThan(120);
+  });
+  test("close to the ground the air is calm: landing is as easy as it was", () => {
+    const low = aboard(), a = low.riding(); low.advance(0.3, { space: true }); low.advance(0.7, {});
+    const x = a.x, z = a.z; low.advance(2, {}); const lowMove = Math.hypot(a.x - x, a.z - z);
+    const high = aboard(), b = high.riding(); high.advance(3, { space: true }); high.advance(0.7, {});
+    const u = b.x, v = b.z; high.advance(2, {}); expect(lowMove).toBeLessThan(Math.hypot(b.x - u, b.z - v));
+  });
+  test("a deterministic ride: same keys, same flight", () => {
+    const run = () => { const g = aboard(); g.advance(3, { w: true, space: true }); g.advance(2, { a: true, w: true }); const s = g.riding(); return [s.x, s.y, s.z, s.swingRoll]; };
+    expect(run()).toEqual(run());
+  });
+});
+
+describe("drafts", () => {
+  const inAir = () => { const g = aboard("flight"), s = g.riding(); g.advance(2, { space: true }); return { g, s }; };
+  const at = (s, x, z, y = 420) => { s.x = x; s.z = z; s.y = y; s.vx = s.vy = s.vz = 0; };
+  test("an updraft lifts you faster than the engine can climb", () => {
+    const { g, s } = inAir(); at(s, 0, 420); g.advance(1.5, {}); const y = s.y; g.advance(1, {});
+    expect(s.y - y).toBeGreaterThan(SHIP.climbSpeed * 1.2);
+    expect(g.events.some((e) => e.type === "entered_draft" && e.kind === "up")).toBe(true);
+  });
+  test("a downdraft pulls you down, even climbing against it you lose out", () => {
+    const { g, s } = inAir(); at(s, 420, 0, 600); g.advance(1.5, {}); const y = s.y; g.advance(1, {});
+    expect(s.y).toBeLessThan(y - 50);
+    at(s, 420, 0, 600); g.advance(1.5, { space: true }); const y2 = s.y; g.advance(1, { space: true });
+    expect(s.y).toBeLessThan(y2);
+    expect(g.events.some((e) => e.type === "entered_draft" && e.kind === "down")).toBe(true);
+  });
+  test("outside the column the air is still", () => {
+    const { g, s } = inAir(); at(s, -400, -400); g.advance(1.5, {}); const y = s.y; g.advance(1, {});
+    expect(Math.abs(s.y - y)).toBeLessThan(12);
+  });
+  test("an updraft runs out: it can't throw you through the ceiling", () => {
+    const { g, s } = inAir(); at(s, 0, 420); g.advance(12, {});
+    expect(s.y).toBeLessThan(860);        // momentum carries her a little past the top
+  });
+  test("a downdraft can't push you into the mist floor", () => {
+    const { g, s } = inAir(); at(s, 420, 0, 300); g.advance(10, { shift: true });
+    expect(s.y).toBeGreaterThan(SHIP.floor - 20);
+  });
+  test("drafts stay out of the way of landing: auto-land ignores them", () => {
+    const g = aboard("flight"), s = g.riding(); g.advance(1, { space: true }); g.step({ e: true }); g.advance(8, {});
+    expect(s.landed).toBe(true); expect(g.state.mode).toBe("walk");
   });
 });
 

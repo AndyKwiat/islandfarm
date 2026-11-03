@@ -16,6 +16,7 @@ export function createHud(game, statsText = () => "") {
       for (; nextEvent < events.length; nextEvent++) {
         const e = events[nextEvent];
         if (e.type === "arrived") show(e.name);
+        if (e.type === "entered_draft") show(e.kind === "up" ? "Updraft!" : "Downdraft!", 1.4);
         if (e.type === "cant_land") show(e.reason === "no ground below" ? "Nothing to land on down there" : "No clear spot to land");
       }
       if ((cardT -= dt) <= 0) card.style.opacity = 0;
@@ -26,7 +27,7 @@ export function createHud(game, statsText = () => "") {
       if (p !== lastPrompt) { prompt.innerHTML = p ? `<kbd>E</kbd> ${p}` : ""; prompt.style.opacity = p ? 1 : 0; lastPrompt = p; }
 
       const s = game.riding();
-      if (state.mode === "fly" && s) { speed.style.opacity = 1; speed.textContent = `${Math.round(Math.hypot(s.vx, s.vz))} kn · ${Math.round(s.y)} m`; }
+      if (state.mode === "fly" && s) { speed.style.opacity = 1; const rate = Math.round(s.climbRate / 10) * 10; speed.textContent = `${Math.round(Math.hypot(s.vx, s.vz))} kn · ${Math.round(s.y)} m ${rate > 15 ? "▲" : rate < -15 ? "▼" : "–"}`; }
       else speed.style.opacity = 0;
 
       fpsN++; fpsT += dt;

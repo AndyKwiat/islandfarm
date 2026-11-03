@@ -54,7 +54,7 @@ function routePose(r, t) {
 
 export function shipPose(ship, t) {
   const r = ship.route, p = routePose(r, t);
-  return { x: p.x, y: r.y + Math.sin(t * 0.3 + r.phase) * 5, z: p.z, yaw: p.yaw, bank: -r.dir * Math.min(0.14, (r.speed / AVG(r)) * 1.6), flapPhase: t * (ship.type.flap ?? 0) * TAU };
+  return { x: p.x, y: r.y + Math.sin(t * 0.3 + r.phase) * 5, z: p.z, yaw: p.yaw, bank: r.dir * Math.min(0.14, (r.speed / AVG(r)) * 1.6), flapPhase: t * (ship.type.flap ?? 0) * TAU };
 }
 
 /** Position of bird i of a flock at time t. */
@@ -76,7 +76,7 @@ export function birdPose(flock, i, t) {
   // flapping; big birds mostly glide, with a few beats now and then
   let amp = type.amp;
   if (type.glide) amp = Math.sin(t * 0.17 + m.p) > 0.45 ? type.amp : 0.05;
-  const bank = type.formation === "solo" ? -r.dir * Math.min(0.5, (r.speed / AVG(r)) * 7) : 0;
+  const bank = type.formation === "solo" ? r.dir * Math.min(0.5, (r.speed / AVG(r)) * 7) : 0;
   return { x, y, z, yaw, bank, phase: t * type.rate * TAU + m.p, amp };
 }
 

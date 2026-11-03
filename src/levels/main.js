@@ -293,6 +293,9 @@ const level = {
     { low: "quarry_low", high: "summit_high", period: 52 },
   ],
 
+  // Columns of moving air in the gaps (src/game/drafts.js). Generated from the seed: the maps show where they are.
+  drafts: { seed: 5, up: 16, down: 5 },
+
   // Life in the sky: how many of everything. Routes are generated from the seed and checked against the world, so these
   // numbers are all there is to edit. Types and their habits: src/game/skyTraffic.js.
   sky: {

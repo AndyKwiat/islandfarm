@@ -72,6 +72,21 @@ export const SCENARIOS = {
     ],
   },
 
+  /** Sit in an updraft and go up, faster than the engine alone could. */
+  ride_updraft: {
+    level: "flight",
+    steps: [
+      { boardNearest: true },
+      { hold: "w,space", for: 1.5 },
+      { flyTo: [0, 420], alt: 420 },
+      { wait: 0.6 },
+      { shot: "in_updraft" },
+      { do: (g) => { g.startY = g.riding().y; } },
+      { wait: 1.5 },
+      { expect: (s, g) => g.riding().y > g.startY + 120, note: "rising fast" },
+    ],
+  },
+
   /** Fly straight at a cliff: the ship slides off it. */
   cliff_bump: {
     level: "hop",
