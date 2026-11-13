@@ -4,6 +4,8 @@ A cozy prototype: cliff-top islands above a white mist, ancient-China-ish with g
 hut and a small farm. Run around, climb aboard your airship, fly to another island, land, jump out, wander. No game yet:
 this exists to find out how walking and flying feel.
 
+![screenshot](docs/screenshot.png)
+
 Plain ES modules + three.js, no build step. Engine, models and art style come from the Jade River City tech demo.
 
 ```sh
